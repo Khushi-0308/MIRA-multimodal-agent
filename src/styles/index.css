@@ -1,0 +1,501 @@
+/* ==========================================================================
+   MIRA Design System — Gen-Z Multi-Theme Architecture
+   Default Theme: Liquid Rose
+   ========================================================================== */
+
+:root,
+[data-theme="liquid-rose"] {
+  /* Liquid Rose Primary Palette (Default) */
+  --bg-app: #fff5f7;
+  --bg-surface: #ffffff;
+  --bg-surface-secondary: #fff0f3;
+  --bg-surface-tertiary: #ffe4e6;
+  --bg-glass: rgba(255, 255, 255, 0.92);
+  --bg-overlay: rgba(74, 21, 45, 0.35);
+
+  /* Deep Plum & Rose Typography */
+  --text-primary: #4a152d;
+  --text-secondary: #702e48;
+  --text-muted: #9f496e;
+  --text-inverse: #ffffff;
+
+  /* Brand Accents: Liquid Rose + Blush + Lavender + Soft Mint */
+  --brand-primary: #f43f5e;
+  --brand-primary-light: #ffe4e6;
+  --brand-primary-hover: #e11d48;
+  --brand-blush: #fda4af;
+  --brand-lavender: #818cf8;
+  --brand-lavender-light: #ede9fe;
+  --brand-mint: #10b981;
+  --brand-mint-light: #d1fae5;
+  --brand-accent: #fb7185;
+
+  /* Borders & Dividers */
+  --border-subtle: #fecdd3;
+  --border-medium: #fda4af;
+  --border-focus: #f43f5e;
+  --border-card: rgba(254, 205, 211, 0.85);
+
+  /* State Accents */
+  --state-idle: #818cf8;
+  --state-idle-bg: #ede9fe;
+  --state-listening: #f43f5e;
+  --state-listening-bg: #ffe4e6;
+  --state-observing: #0284c7;
+  --state-observing-bg: #e0f2fe;
+  --state-thinking: #a855f7;
+  --state-thinking-bg: #f3e8ff;
+  --state-speaking: #ec4899;
+  --state-speaking-bg: #fce7f3;
+  --state-approval: #f97316;
+  --state-approval-bg: #ffedd5;
+  --state-executing: #3b82f6;
+  --state-executing-bg: #dbeafe;
+  --state-verifying: #059669;
+  --state-verifying-bg: #d1fae5;
+  --state-completed: #10b981;
+  --state-completed-bg: #ecfdf5;
+  --state-error: #ef4444;
+  --state-error-bg: #fee2e2;
+
+  /* Shadows: Soft Velvety Organic */
+  --shadow-sm: 0 2px 6px rgba(244, 63, 94, 0.06), 0 1px 2px rgba(74, 21, 45, 0.03);
+  --shadow-card: 0 8px 24px -4px rgba(244, 63, 94, 0.08), 0 2px 6px rgba(74, 21, 45, 0.03);
+  --shadow-lg: 0 16px 36px -6px rgba(244, 63, 94, 0.12), 0 4px 12px rgba(74, 21, 45, 0.04);
+
+  /* Rounded Organic Radii */
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --radius-xl: 28px;
+  --radius-pill: 9999px;
+
+  /* Typography */
+  --font-sans: 'Manrope', 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+/* ==========================================================================
+   Theme 2: Midnight (Chic night-owl violet dusk & electric coral)
+   ========================================================================== */
+[data-theme="midnight"] {
+  --bg-app: #0d0c15;
+  --bg-surface: #151322;
+  --bg-surface-secondary: #1e1b30;
+  --bg-surface-tertiary: #272440;
+  --bg-glass: rgba(21, 19, 34, 0.92);
+  --bg-overlay: rgba(0, 0, 0, 0.65);
+
+  --text-primary: #fffffe;
+  --text-secondary: #a7a9be;
+  --text-muted: #72757e;
+  --text-inverse: #0d0c15;
+
+  --brand-primary: #ff5470;
+  --brand-primary-light: rgba(255, 84, 112, 0.18);
+  --brand-primary-hover: #ff3355;
+  --brand-blush: #ff8906;
+  --brand-lavender: #7f5af0;
+  --brand-lavender-light: rgba(127, 90, 240, 0.18);
+  --brand-mint: #2cb67d;
+  --brand-mint-light: rgba(44, 182, 125, 0.18);
+  --brand-accent: #7f5af0;
+
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-medium: rgba(255, 255, 255, 0.16);
+  --border-focus: #ff5470;
+  --border-card: rgba(255, 255, 255, 0.10);
+
+  --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.4);
+  --shadow-card: 0 8px 30px rgba(0, 0, 0, 0.45), 0 0 1px rgba(255, 255, 255, 0.1);
+  --shadow-lg: 0 16px 40px rgba(0, 0, 0, 0.6);
+}
+
+/* ==========================================================================
+   Theme 3: Glitter (Y2K pearlescent, dreamy lilac & chrome sparkle)
+   ========================================================================== */
+[data-theme="glitter"] {
+  --bg-app: #faf5ff;
+  --bg-surface: #ffffff;
+  --bg-surface-secondary: #f3e8ff;
+  --bg-surface-tertiary: #e9d5ff;
+  --bg-glass: rgba(255, 255, 255, 0.94);
+  --bg-overlay: rgba(59, 7, 100, 0.3);
+
+  --text-primary: #3b0764;
+  --text-secondary: #6b21a8;
+  --text-muted: #9333ea;
+  --text-inverse: #ffffff;
+
+  --brand-primary: #c084fc;
+  --brand-primary-light: #f3e8ff;
+  --brand-primary-hover: #a855f7;
+  --brand-blush: #f472b6;
+  --brand-lavender: #a855f7;
+  --brand-lavender-light: #f3e8ff;
+  --brand-mint: #38bdf8;
+  --brand-mint-light: #e0f2fe;
+  --brand-accent: #e879f9;
+
+  --border-subtle: #e9d5ff;
+  --border-medium: #d8b4fe;
+  --border-focus: #c084fc;
+  --border-card: rgba(216, 180, 254, 0.85);
+
+  --shadow-sm: 0 2px 8px rgba(192, 132, 252, 0.12);
+  --shadow-card: 0 8px 24px -2px rgba(192, 132, 252, 0.14), 0 1px 3px rgba(59, 7, 100, 0.04);
+  --shadow-lg: 0 16px 36px -4px rgba(192, 132, 252, 0.18);
+}
+
+/* ==========================================================================
+   Theme 4: Bold (Neo-brutalist pop, electric mango & punchy lines)
+   ========================================================================== */
+[data-theme="bold"] {
+  --bg-app: #fffbeb;
+  --bg-surface: #ffffff;
+  --bg-surface-secondary: #fef3c7;
+  --bg-surface-tertiary: #fde68a;
+  --bg-glass: #ffffff;
+  --bg-overlay: rgba(0, 0, 0, 0.5);
+
+  --text-primary: #18181b;
+  --text-secondary: #27272a;
+  --text-muted: #52525b;
+  --text-inverse: #ffffff;
+
+  --brand-primary: #f97316;
+  --brand-primary-light: #ffedd5;
+  --brand-primary-hover: #ea580c;
+  --brand-blush: #fb923c;
+  --brand-lavender: #8b5cf6;
+  --brand-lavender-light: #ede9fe;
+  --brand-mint: #84cc16;
+  --brand-mint-light: #ecfccb;
+  --brand-accent: #e11d48;
+
+  --border-subtle: #18181b;
+  --border-medium: #18181b;
+  --border-focus: #18181b;
+  --border-card: #18181b;
+
+  --shadow-sm: 2px 2px 0px #18181b;
+  --shadow-card: 4px 4px 0px #18181b;
+  --shadow-lg: 6px 6px 0px #18181b;
+
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 18px;
+}
+
+/* ==========================================================================
+   Theme 5: Edge (Streetwear minimalist, chalk bone & acid citron)
+   ========================================================================== */
+[data-theme="edge"] {
+  --bg-app: #f4f4f5;
+  --bg-surface: #ffffff;
+  --bg-surface-secondary: #e4e4e7;
+  --bg-surface-tertiary: #d4d4d8;
+  --bg-glass: rgba(255, 255, 255, 0.94);
+  --bg-overlay: rgba(9, 9, 11, 0.45);
+
+  --text-primary: #09090b;
+  --text-secondary: #3f3f46;
+  --text-muted: #71717a;
+  --text-inverse: #ffffff;
+
+  --brand-primary: #18181b;
+  --brand-primary-light: #e4e4e7;
+  --brand-primary-hover: #09090b;
+  --brand-blush: #71717a;
+  --brand-lavender: #a1a1aa;
+  --brand-lavender-light: #f4f4f5;
+  --brand-mint: #bef264;
+  --brand-mint-light: #ecfccb;
+  --brand-accent: #bef264;
+
+  --border-subtle: #d4d4d8;
+  --border-medium: #a1a1aa;
+  --border-focus: #18181b;
+  --border-card: #e4e4e7;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+  --shadow-card: 0 4px 16px -2px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 10px 25px -4px rgba(0, 0, 0, 0.08);
+
+  --font-sans: 'Space Grotesk', 'Manrope', -apple-system, sans-serif;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+}
+
+/* ==========================================================================
+   Base Styles & Reset
+   ========================================================================== */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+  width: 100%;
+  background-color: var(--bg-app);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+  transition: background-color 250ms ease, color 250ms ease;
+}
+
+#root {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-medium);
+  border-radius: var(--radius-pill);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--brand-primary);
+}
+
+/* Organic Cards */
+.mira-card {
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-card);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  transition: all 200ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.mira-card:hover {
+  border-color: var(--border-medium);
+}
+
+.mira-card-header {
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-surface-secondary);
+  border-top-left-radius: var(--radius-xl);
+  border-top-right-radius: var(--radius-xl);
+}
+
+.mira-card-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: -0.01em;
+}
+
+.mira-card-body {
+  padding: 16px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+/* Pill Badges */
+.mira-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  transition: all 150ms ease;
+}
+
+.mira-badge-mono {
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+/* Buttons with Tactile Spring Micro-Interactions */
+.mira-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1.5px solid var(--border-subtle);
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  transition: all 180ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.mira-btn:hover {
+  background: var(--bg-surface-secondary);
+  border-color: var(--border-medium);
+  transform: translateY(-1px);
+}
+
+.mira-btn:active {
+  transform: scale(0.96);
+}
+
+.mira-btn-primary {
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+  color: #ffffff;
+  box-shadow: 0 4px 12px -2px rgba(244, 63, 94, 0.3);
+}
+
+.mira-btn-primary:hover {
+  background: var(--brand-primary-hover);
+  border-color: var(--brand-primary-hover);
+  color: #ffffff;
+}
+
+.mira-btn-danger {
+  background: #fee2e2;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+.mira-btn-danger:hover {
+  background: #fecaca;
+}
+
+.mira-btn-success {
+  background: #d1fae5;
+  border-color: #86efac;
+  color: #059669;
+}
+.mira-btn-success:hover {
+  background: #a7f3d0;
+}
+
+.mira-btn-sm {
+  padding: 5px 10px;
+  font-size: 11px;
+  border-radius: var(--radius-sm);
+}
+
+.mira-btn-icon {
+  padding: 7px;
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+}
+
+/* ==========================================================================
+   Mascot Keyframe Animations
+   ========================================================================== */
+@keyframes mira-float {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-3px) rotate(1deg); }
+}
+
+@keyframes mira-listening {
+  0%, 100% { transform: scale(1) translateY(0); }
+  50% { transform: scale(1.04) translateY(-2px); }
+}
+
+@keyframes mira-observing {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-2deg); }
+  75% { transform: rotate(2deg); }
+}
+
+@keyframes mira-thinking {
+  0%, 100% { transform: translateY(0) rotate(-1deg); }
+  50% { transform: translateY(-4px) rotate(2deg); }
+}
+
+@keyframes mira-speaking {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03) translateY(-1px); }
+}
+
+@keyframes mira-waiting {
+  0%, 100% { transform: rotate(0deg); }
+  20% { transform: rotate(-3deg); }
+  40% { transform: rotate(3deg); }
+  60% { transform: rotate(0deg); }
+}
+
+@keyframes mira-executing {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05) translateY(-2px); }
+}
+
+@keyframes mira-verifying {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(2px); }
+}
+
+@keyframes mira-celebrate {
+  0%, 100% { transform: translateY(0) scale(1); }
+  30% { transform: translateY(-6px) scale(1.06); }
+  60% { transform: translateY(-2px) scale(1.03); }
+}
+
+@keyframes mira-dizzy {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-4deg); }
+  75% { transform: rotate(4deg); }
+}
+
+@keyframes scan-sweep {
+  0% { transform: translateY(-10px); opacity: 0.2; }
+  50% { transform: translateY(12px); opacity: 1; }
+  100% { transform: translateY(-10px); opacity: 0.2; }
+}
+
+@keyframes radar-pulse {
+  0% { opacity: 0.3; transform: scale(0.9); }
+  50% { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 0.3; transform: scale(0.9); }
+}
+
+.mira-anim-float { animation: mira-float 3.5s ease-in-out infinite; }
+.mira-anim-listening { animation: mira-listening 1.2s ease-in-out infinite; }
+.mira-anim-observing { animation: mira-observing 2.5s ease-in-out infinite; }
+.mira-anim-thinking { animation: mira-thinking 2s ease-in-out infinite; }
+.mira-anim-speaking { animation: mira-speaking 0.6s ease-in-out infinite; }
+.mira-anim-waiting { animation: mira-waiting 2.2s ease-in-out infinite; }
+.mira-anim-executing { animation: mira-executing 0.8s ease-in-out infinite; }
+.mira-anim-verifying { animation: mira-verifying 1.5s ease-in-out infinite; }
+.mira-anim-completed { animation: mira-celebrate 1s cubic-bezier(0.34, 1.56, 0.64, 1) infinite; }
+.mira-anim-error { animation: mira-dizzy 1.4s ease-in-out infinite; }
+.mira-anim-bounce { animation: mira-celebrate 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+
+.mira-scan-beam {
+  animation: scan-sweep 2s ease-in-out infinite;
+}
+
+.mira-pulse-wave {
+  animation: radar-pulse 1.2s ease-in-out infinite;
+}
