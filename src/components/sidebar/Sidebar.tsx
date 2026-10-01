@@ -3,6 +3,7 @@ import { useMira } from '../../context/MiraContext';
 import { MiraAvatar } from '../mascot/MiraAvatar';
 import {
   Home,
+  Sun,
   MessageSquare,
   Camera,
   FileText,
@@ -24,6 +25,7 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { id: 'Home', label: 'Home', icon: Home },
+  { id: 'MyDay', label: 'My Day', icon: Sun, badge: 'Today' },
   { id: 'Chat', label: 'Chat', icon: MessageSquare },
   { id: 'Vision', label: 'Vision', icon: Camera },
   { id: 'Documents', label: 'Documents', icon: FileText },
@@ -31,6 +33,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'Studio', label: 'MIRA Studio', icon: Sparkles, badge: '5 Themes' },
   { id: 'Settings', label: 'Settings', icon: Settings },
 ];
+
 
 export const Sidebar: React.FC = () => {
   const {

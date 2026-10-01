@@ -10,7 +10,9 @@ import {
   Mic,
   Eye,
   Clock,
+  Sun,
 } from 'lucide-react';
+
 
 export const HomePage: React.FC = () => {
   const {
@@ -53,6 +55,14 @@ export const HomePage: React.FC = () => {
 
             <button
               className="mira-btn home-secondary-btn"
+              onClick={() => setActiveNavTab('MyDay')}
+            >
+              <Sun size={16} style={{ color: '#f59e0b' }} />
+              <span>My Day Dashboard</span>
+            </button>
+
+            <button
+              className="mira-btn home-secondary-btn"
               onClick={() => setActiveNavTab('Vision')}
             >
               <Camera size={16} />
@@ -60,6 +70,7 @@ export const HomePage: React.FC = () => {
             </button>
           </div>
         </div>
+
 
         {/* Hero Mascot Avatar */}
         <div className="home-hero-mascot-box">

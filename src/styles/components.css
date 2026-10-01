@@ -4304,3 +4304,978 @@
   border: 1px solid var(--border-subtle);
 }
 
+/* ==========================================================================
+   My Day / Personal Command Center Styles
+   ========================================================================== */
+.my-day-page-container {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+/* Top Hero Banner */
+.my-day-hero-banner {
+  background: var(--bg-surface);
+  border: 2px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  padding: 24px 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 24px;
+  box-shadow: var(--shadow-md);
+  position: relative;
+  overflow: hidden;
+}
+
+.my-day-hero-banner::before {
+  content: '';
+  position: absolute;
+  top: -50px;
+  right: -50px;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(244, 63, 94, 0.12) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+.my-day-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.my-day-tag-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--brand-primary);
+  background: rgba(244, 63, 94, 0.1);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid rgba(244, 63, 94, 0.2);
+}
+
+.my-day-date-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-surface-secondary);
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+}
+
+.my-day-hero-title {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+  letter-spacing: -0.02em;
+}
+
+.my-day-hero-subtitle {
+  font-size: 13.5px;
+  color: var(--text-secondary);
+  max-width: 580px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.my-day-quick-buttons {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.my-day-sub-btn {
+  background: var(--bg-surface-secondary);
+  color: var(--text-primary);
+  border: 1.5px solid var(--border-card);
+  padding: 8px 14px;
+  font-size: 12.5px;
+  font-weight: 700;
+  border-radius: var(--radius-pill);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 160ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.my-day-sub-btn:hover {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+  transform: translateY(-1px);
+}
+
+.my-day-hero-avatar-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  text-align: center;
+  position: relative;
+}
+
+.my-day-mascot-speech {
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: var(--bg-surface-secondary);
+  border: 1px solid var(--border-subtle);
+  padding: 5px 12px;
+  border-radius: 9999px;
+  box-shadow: var(--shadow-sm);
+  max-width: 220px;
+}
+
+/* Metric Stat Ribbon */
+.my-day-progress-ribbon {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.progress-ribbon-card {
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.progress-ribbon-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.progress-icon-box {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.progress-icon-box.tasks {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.progress-icon-box.momentum {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+
+.progress-icon-box.reminders {
+  background: rgba(244, 63, 94, 0.12);
+  color: var(--brand-primary);
+}
+
+.progress-ribbon-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  display: block;
+}
+
+.progress-ribbon-value {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.progress-ribbon-value span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.progress-bar-track {
+  height: 8px;
+  background: var(--bg-surface-secondary);
+  border-radius: 9999px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #059669);
+  border-radius: 9999px;
+  transition: width 400ms ease;
+}
+
+.progress-bar-fill.momentum-fill {
+  background: linear-gradient(90deg, #f59e0b, #ea580c);
+}
+
+.progress-ribbon-meta {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+/* Ask MIRA Action Hub */
+.my-day-ask-mira-section {
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 16px 20px;
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ask-mira-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ask-mira-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.ask-mira-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(244, 63, 94, 0.1);
+  color: var(--brand-primary);
+  border: 1px solid rgba(244, 63, 94, 0.2);
+}
+
+.ask-mira-chips-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ask-mira-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--bg-surface-secondary);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-pill);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 160ms ease;
+}
+
+.ask-mira-chip:hover {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+  background: rgba(244, 63, 94, 0.06);
+  transform: translateY(-1px);
+}
+
+.ask-mira-input-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-surface-secondary);
+  border: 1.5px solid var(--border-card);
+  border-radius: var(--radius-pill);
+  padding: 4px 6px 4px 16px;
+  transition: border-color 160ms ease;
+}
+
+.ask-mira-input-bar:focus-within {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.12);
+}
+
+.ask-mira-input-bar input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-size: 12.5px;
+  color: var(--text-primary);
+}
+
+.ask-send-btn {
+  padding: 6px 14px;
+  font-size: 11.5px;
+}
+
+/* Main 2-Column Layout */
+.my-day-main-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 16px;
+}
+
+.my-day-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.tasks-count-pill,
+.reminders-count-pill {
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--bg-surface-secondary);
+  color: var(--text-secondary);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+  margin-left: 6px;
+}
+
+.add-task-btn {
+  padding: 6px 12px;
+  font-size: 11.5px;
+}
+
+/* Inline Forms */
+.my-day-inline-form {
+  background: var(--bg-surface-secondary);
+  border: 1.5px solid var(--brand-primary);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: var(--shadow-sm);
+}
+
+.my-day-inline-form input,
+.my-day-inline-form select {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-card);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.my-day-inline-form input:focus,
+.my-day-inline-form select:focus {
+  border-color: var(--brand-primary);
+}
+
+.inline-form-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* Filter Chips Bar */
+.task-filter-chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.filter-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.task-filter-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface-secondary);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 140ms ease;
+}
+
+.task-filter-pill:hover {
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+}
+
+.task-filter-pill.active {
+  background: var(--brand-primary);
+  color: #ffffff;
+  border-color: var(--brand-primary);
+  font-weight: 700;
+}
+
+/* Tasks List */
+.tasks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 480px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.task-item-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--bg-surface-secondary);
+  border: 1.5px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  transition: all 160ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.task-item-card:hover {
+  border-color: var(--border-hover);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.task-item-card.completed {
+  opacity: 0.65;
+  background: var(--bg-surface);
+}
+
+.task-item-card.completed .task-title {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.task-checkbox {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: var(--bg-surface);
+  border: 1.5px solid var(--border-card);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 140ms ease;
+}
+
+.task-checkbox:hover {
+  border-color: #10b981;
+  color: #10b981;
+}
+
+.task-checkbox.checked {
+  background: #10b981;
+  border-color: #10b981;
+  color: #ffffff;
+}
+
+.task-content {
+  flex: 1;
+  cursor: pointer;
+}
+
+.task-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+  display: block;
+  margin-bottom: 4px;
+}
+
+.task-tags {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.task-tag {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: var(--radius-pill);
+  text-transform: capitalize;
+}
+
+.task-tag.category-work { background: rgba(59, 130, 246, 0.12); color: #2563eb; }
+.task-tag.category-study { background: rgba(168, 85, 247, 0.12); color: #9333ea; }
+.task-tag.category-personal { background: rgba(236, 72, 153, 0.12); color: #db2777; }
+.task-tag.category-health { background: rgba(16, 185, 129, 0.12); color: #059669; }
+
+.task-tag.priority-high { background: rgba(239, 68, 68, 0.12); color: #dc2626; }
+.task-tag.priority-medium { background: rgba(245, 158, 11, 0.12); color: #d97706; }
+.task-tag.priority-low { background: rgba(100, 116, 139, 0.12); color: #475569; }
+
+.task-tag.time-tag {
+  background: var(--bg-surface);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.task-delete-btn,
+.timeline-delete-btn,
+.diary-entry-del {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 140ms ease;
+}
+
+.task-delete-btn:hover,
+.timeline-delete-btn:hover,
+.diary-entry-del:hover {
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+/* Reminders List */
+.reminders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reminder-item-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--bg-surface-secondary);
+  border: 1.5px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+}
+
+.reminder-item-card.urgent {
+  border-color: #ea580c;
+  background: rgba(234, 88, 12, 0.04);
+}
+
+.reminder-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.reminder-icon-box {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: rgba(234, 88, 12, 0.12);
+  color: #ea580c;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.reminder-text {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.reminder-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.reminder-tag {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface);
+  color: #ea580c;
+  border: 1px solid rgba(234, 88, 12, 0.2);
+}
+
+.reminder-time {
+  font-size: 10px;
+  color: var(--text-muted);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.reminder-dismiss-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-card);
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.reminder-dismiss-btn:hover {
+  background: #10b981;
+  color: #ffffff;
+  border-color: #10b981;
+}
+
+/* Timeline */
+.events-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-top: 6px;
+}
+
+.timeline-item {
+  display: flex;
+  gap: 12px;
+  position: relative;
+  min-height: 52px;
+}
+
+.timeline-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 14px;
+  flex-shrink: 0;
+  padding-top: 4px;
+}
+
+.timeline-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--brand-primary);
+  border: 2px solid var(--bg-surface);
+  box-shadow: 0 0 0 2px var(--brand-primary);
+}
+
+.timeline-line {
+  flex: 1;
+  width: 2px;
+  background: var(--border-card);
+  margin-top: 4px;
+}
+
+.timeline-content {
+  flex: 1;
+  padding-bottom: 12px;
+}
+
+.timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.timeline-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.timeline-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.timeline-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-weight: 600;
+  color: var(--brand-primary);
+}
+
+/* Diary & Reflection Section */
+.my-day-diary-section {
+  width: 100%;
+}
+
+.diary-streak-badge {
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(168, 85, 247, 0.1);
+  color: #9333ea;
+  border: 1px solid rgba(168, 85, 247, 0.2);
+}
+
+.diary-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.diary-composer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mood-picker-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.mood-picker-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.mood-picker-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-surface-secondary);
+  border: 1.5px solid var(--border-card);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.mood-picker-btn:hover {
+  border-color: var(--brand-primary);
+  transform: translateY(-1px);
+}
+
+.mood-picker-btn.active {
+  background: rgba(244, 63, 94, 0.1);
+  border-color: var(--brand-primary);
+  color: var(--brand-primary);
+  font-weight: 700;
+}
+
+.mood-emoji {
+  font-size: 15px;
+}
+
+.diary-textarea {
+  width: 100%;
+  background: var(--bg-surface-secondary);
+  border: 1.5px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  font-size: 12.5px;
+  color: var(--text-primary);
+  outline: none;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 75px;
+  transition: border-color 160ms ease;
+}
+
+.diary-textarea:focus {
+  border-color: var(--brand-primary);
+  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.1);
+}
+
+.diary-submit-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.diary-hint-text {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.diary-history {
+  display: flex;
+  flex-direction: column;
+}
+
+.diary-history-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.diary-entries-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.diary-entry-card {
+  background: var(--bg-surface-secondary);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+}
+
+.diary-entry-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.diary-entry-mood {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.diary-entry-emoji {
+  font-size: 14px;
+}
+
+.diary-entry-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.diary-entry-time-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.diary-entry-time {
+  font-size: 10.5px;
+  color: var(--text-muted);
+}
+
+.diary-entry-text {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.45;
+}
+
+/* Empty States */
+.my-day-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 28px 16px;
+  background: var(--bg-surface-secondary);
+  border: 1.5px dashed var(--border-card);
+  border-radius: var(--radius-md);
+  gap: 8px;
+}
+
+.my-day-empty-state.compact {
+  padding: 16px;
+}
+
+.my-day-empty-state h4 {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.my-day-empty-state p {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  max-width: 280px;
+}
+
+/* Responsive Media Queries */
+@media (max-width: 960px) {
+  .my-day-main-grid {
+    grid-template-columns: 1fr;
+  }
+  .my-day-progress-ribbon {
+    grid-template-columns: 1fr;
+  }
+  .diary-grid {
+    grid-template-columns: 1fr;
+  }
+  .my-day-hero-banner {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+  }
+}
+
+@media (max-width: 640px) {
+  .my-day-page-container {
+    padding: 14px;
+  }
+  .my-day-hero-title {
+    font-size: 21px;
+  }
+}
+
+

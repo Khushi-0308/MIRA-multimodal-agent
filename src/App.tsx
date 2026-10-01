@@ -5,6 +5,7 @@ import { Header } from './components/header/Header';
 import { StateSimulatorBar } from './components/header/StateSimulatorBar';
 import { AnimatedThemeBackground } from './components/background/AnimatedThemeBackground';
 import { HomePage } from './pages/HomePage';
+import { MyDayPage } from './pages/MyDayPage';
 import { ChatPage } from './pages/ChatPage';
 import { VisionPage } from './pages/VisionPage';
 import { DocumentsPage } from './pages/DocumentsPage';
@@ -21,6 +22,8 @@ export const App: React.FC = () => {
     switch (activeNavTab) {
       case 'Home':
         return <HomePage />;
+      case 'MyDay':
+        return <MyDayPage />;
       case 'Chat':
         return <ChatPage />;
       case 'Vision':
@@ -37,6 +40,7 @@ export const App: React.FC = () => {
         return <HomePage />;
     }
   };
+
 
   return (
     <div className="mira-app-shell">
