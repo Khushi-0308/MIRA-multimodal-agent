@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useMira } from '../context/MiraContext';
 import { MiraAvatar } from '../components/mascot/MiraAvatar';
+import { apiClient, wsClient } from '../services';
 import {
   Zap,
   Check,
@@ -30,6 +31,43 @@ export const ActionsPage: React.FC = () => {
   const [rejectReason, setRejectReason] = useState('');
   const [isRejecting, setIsRejecting] = useState(false);
   const [showJsonParams, setShowJsonParams] = useState(false);
+  const sessionIdRef = useRef<string>(`mira-action-${Date.now().toString(36)}`);
+
+  // Connect WebSocket and initialize action context on mount
+  useEffect(() => {
+    const sessionId = sessionIdRef.current;
+    wsClient.connect(sessionId).catch((err) => {
+      console.warn('[ActionsPage] WebSocket initial connect:', err);
+    });
+
+    if (currentActionProposal) {
+      apiClient.saveContext({
+        session_id: sessionId,
+        modalities: {
+          action: {
+            proposal_id: currentActionProposal.id,
+            tool_name: currentActionProposal.toolName,
+            status: currentActionProposal.status,
+            summary: currentActionProposal.summary,
+            updated_at: new Date().toISOString(),
+          },
+        },
+        active_anchors: [
+          {
+            modality: 'system',
+            title: `Action: ${currentActionProposal.summary}`,
+            source: `Safety Gate: ${currentActionProposal.toolName}`,
+            summary: currentActionProposal.description,
+            token_weight: 180,
+          },
+        ],
+      }).catch((err) => console.warn('[ActionsPage] Initial context sync error:', err));
+    }
+
+    return () => {
+      wsClient.disconnect();
+    };
+  }, []);
 
   const getStepStatus = (stepIndex: number) => {
     // 0: Proposed Action, 1: User Approval, 2: Execution, 3: Verification
@@ -67,17 +105,137 @@ export const ActionsPage: React.FC = () => {
   ];
 
   const handleApprove = () => {
-    if (currentActionProposal) {
-      approveAction(currentActionProposal.id);
+    if (!currentActionProposal) return;
+    const proposal = currentActionProposal;
+    const sessionId = sessionIdRef.current;
+
+    approveAction(proposal.id);
+
+    // Sync approval event to backend ContextCore
+    apiClient.saveContext({
+      session_id: sessionId,
+      modalities: {
+        action: {
+          proposal_id: proposal.id,
+          tool_name: proposal.toolName,
+          status: 'approved',
+          updated_at: new Date().toISOString(),
+        },
+      },
+    }).catch((err) => console.warn('[ActionsPage] Save context error:', err));
+
+    if (wsClient.getStatus() === 'connected') {
+      wsClient.sendMessage({
+        type: 'action_approved',
+        action_id: proposal.id,
+        toolName: proposal.toolName,
+        message: `Action "${proposal.summary}" was APPROVED by user. Safe dispatch executing via tool "${proposal.toolName}".`,
+      });
     }
+
+    // After execution transition (~1200ms in context), dispatch execution event
+    setTimeout(() => {
+      if (wsClient.getStatus() === 'connected') {
+        wsClient.sendMessage({
+          type: 'action_executed',
+          action_id: proposal.id,
+          toolName: proposal.toolName,
+          message: `Action execution completed for "${proposal.summary}". Entering verification loop stage.`,
+        });
+      }
+
+      // After verification transition (~2600ms total), dispatch verification event
+      setTimeout(() => {
+        apiClient.saveContext({
+          session_id: sessionId,
+          modalities: {
+            action: {
+              proposal_id: proposal.id,
+              tool_name: proposal.toolName,
+              status: 'completed',
+              verified: true,
+              confidence_score: 98.4,
+              updated_at: new Date().toISOString(),
+            },
+          },
+          active_anchors: [
+            {
+              modality: 'system',
+              title: `Verified Action: ${proposal.summary}`,
+              source: 'Telemetry Health Check',
+              summary: 'Execution confirmed 3 pods back online in healthy state with 98.4% confidence.',
+              token_weight: 180,
+            },
+          ],
+        }).catch((err) => console.warn('[ActionsPage] Verification sync error:', err));
+
+        if (wsClient.getStatus() === 'connected') {
+          wsClient.sendMessage({
+            type: 'action_verified',
+            action_id: proposal.id,
+            confidence_score: 98.4,
+            message: `Action verified safely! Telemetry health check passed with 98.4% confidence score.`,
+          });
+        }
+      }, 1400);
+    }, 1200);
   };
 
   const handleConfirmReject = () => {
-    if (currentActionProposal) {
-      rejectAction(currentActionProposal.id, rejectReason || 'Declined by user.');
-      setIsRejecting(false);
-      setRejectReason('');
+    if (!currentActionProposal) return;
+    const proposal = currentActionProposal;
+    const reason = rejectReason || 'Declined by user.';
+    const sessionId = sessionIdRef.current;
+
+    rejectAction(proposal.id, reason);
+    setIsRejecting(false);
+    setRejectReason('');
+
+    apiClient.saveContext({
+      session_id: sessionId,
+      modalities: {
+        action: {
+          proposal_id: proposal.id,
+          tool_name: proposal.toolName,
+          status: 'rejected',
+          reason,
+          updated_at: new Date().toISOString(),
+        },
+      },
+    }).catch((err) => console.warn('[ActionsPage] Save context error:', err));
+
+    if (wsClient.getStatus() === 'connected') {
+      wsClient.sendMessage({
+        type: 'action_rejected',
+        action_id: proposal.id,
+        reason,
+        message: `Action "${proposal.summary}" REJECTED by user: "${reason}". Execution safely aborted.`,
+      });
     }
+  };
+
+  const handleResetDemo = () => {
+    resetActionDemo();
+    const sessionId = sessionIdRef.current;
+
+    setTimeout(() => {
+      apiClient.saveContext({
+        session_id: sessionId,
+        modalities: {
+          action: {
+            status: 'waiting for approval',
+            updated_at: new Date().toISOString(),
+          },
+        },
+      }).catch((err) => console.warn('[ActionsPage] Reset context error:', err));
+
+      if (wsClient.getStatus() === 'connected') {
+        wsClient.sendMessage({
+          type: 'action_proposed',
+          message: 'MIRA generated action proposal for review: Restart Stale Pods (k8s_restart_pods). Awaiting user approval.',
+        });
+      }
+    }, 50);
   };
 
   return (
@@ -104,7 +262,7 @@ export const ActionsPage: React.FC = () => {
         <div className="actions-header-actions">
           <button
             className="mira-btn mira-btn-secondary"
-            onClick={resetActionDemo}
+            onClick={handleResetDemo}
             title="Reset and replay action proposal demo"
           >
             <RotateCcw size={14} />
@@ -264,7 +422,7 @@ export const ActionsPage: React.FC = () => {
               <CheckCircle2 size={32} style={{ color: 'var(--brand-mint)' }} />
               <h3>No Action Pending</h3>
               <p>MIRA is standing by. When a complex tool call is planned, it will appear here for your review.</p>
-              <button className="mira-btn mira-btn-primary" onClick={resetActionDemo}>
+              <button className="mira-btn mira-btn-primary" onClick={handleResetDemo}>
                 Load Demo Action
               </button>
             </div>

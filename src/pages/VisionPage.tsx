@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useMira } from '../context/MiraContext';
 import { BoundingBoxOverlay } from '../components/visual/BoundingBoxOverlay';
 import { MiraAvatar } from '../components/mascot/MiraAvatar';
+import { apiClient, wsClient } from '../services';
 import {
   Eye,
   Camera,
@@ -19,6 +20,7 @@ export const VisionPage: React.FC = () => {
     setVisionSource,
     agentState,
     setAgentState,
+    setLoopStage,
     theme,
     mascotAccessory,
     devMode,
@@ -31,6 +33,30 @@ export const VisionPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [streamActive, setStreamActive] = useState<boolean>(false);
   const [selectedOverlay, setSelectedOverlay] = useState<'boxes' | 'ocr' | 'all'>('all');
+  const [observationText, setObservationText] = useState<string>('');
+  const sessionIdRef = useRef<string>(`mira-vision-${Date.now().toString(36)}`);
+
+  // Connect to Phase 3 WebSocket on mount and synchronize session
+  useEffect(() => {
+    const sessionId = sessionIdRef.current;
+    wsClient.connect(sessionId).catch((err) => {
+      console.warn('[VisionPage] WebSocket initial connect:', err);
+    });
+
+    const unsubscribe = wsClient.onMessage((payload) => {
+      if (payload.type === 'vision_scan' || (payload.echo && (payload.echo as Record<string, unknown>).type === 'vision_scan')) {
+        const reply = payload.response || payload.message;
+        if (reply) {
+          setObservationText(reply);
+        }
+      }
+    });
+
+    return () => {
+      unsubscribe();
+      wsClient.disconnect();
+    };
+  }, []);
 
   const startMediaStream = async (type: 'camera' | 'screen') => {
     try {
@@ -47,6 +73,28 @@ export const VisionPage: React.FC = () => {
         setStreamActive(true);
         setVisionSource(type);
         setAgentState('observing');
+        setLoopStage('SEES');
+
+        // Notify backend ContextCore of active stream
+        apiClient.saveContext({
+          session_id: sessionIdRef.current,
+          modalities: {
+            vision: {
+              source: type,
+              status: 'active',
+              resolution: visionFeed.resolution,
+              updated_at: new Date().toISOString(),
+            },
+          },
+        }).catch((err) => console.warn('[VisionPage] Context save error:', err));
+
+        if (wsClient.getStatus() === 'connected') {
+          wsClient.sendMessage({
+            type: 'vision_stream_start',
+            message: `MIRA began live ${type} observation stream.`,
+            source: type,
+          });
+        }
       }
     } catch (err) {
       console.warn(`Could not start ${type} stream:`, err);
@@ -64,6 +112,25 @@ export const VisionPage: React.FC = () => {
     setStreamActive(false);
     setVisionSource('synthetic_test');
     setAgentState('idle');
+
+    // Notify backend ContextCore of stream pause
+    apiClient.saveContext({
+      session_id: sessionIdRef.current,
+      modalities: {
+        vision: {
+          source: 'synthetic_test',
+          status: 'idle',
+          updated_at: new Date().toISOString(),
+        },
+      },
+    }).catch((err) => console.warn('[VisionPage] Context save error:', err));
+
+    if (wsClient.getStatus() === 'connected') {
+      wsClient.sendMessage({
+        type: 'vision_stream_stop',
+        message: 'MIRA paused visual feed stream.',
+      });
+    }
   };
 
   const handleUploadImage = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -72,20 +139,129 @@ export const VisionPage: React.FC = () => {
       addDocument(file);
       setVisionSource('synthetic_test');
       setAgentState('observing');
+      setLoopStage('SEES');
+
+      // Update backend ContextCore with uploaded image modality
+      apiClient.saveContext({
+        session_id: sessionIdRef.current,
+        modalities: {
+          vision: {
+            source: 'upload',
+            filename: file.name,
+            size: file.size,
+            status: 'active',
+            updated_at: new Date().toISOString(),
+          },
+        },
+      }).catch((err) => console.warn('[VisionPage] Context save error:', err));
+
+      if (wsClient.getStatus() === 'connected') {
+        wsClient.sendMessage({
+          type: 'vision_upload',
+          message: `MIRA ingested uploaded visual document: ${file.name}.`,
+          filename: file.name,
+        });
+      }
     }
   };
 
-  const handleTriggerAnalysis = () => {
+  const handleTriggerAnalysis = async () => {
     setAgentState('observing');
+    setLoopStage('SEES');
     captureSnapshot();
-    addAnchor({
-      modality: 'vision',
-      title: 'Visual Snapshot: Screen Context',
-      source: 'Vision Sensor (1920x1080)',
-      summary: 'Detected UI widgets, code editor, and document notes with 2 bounding anchors.',
-      tokenWeight: 280,
-      isPinned: false,
-    });
+
+    const scanPrompt = `[VISION_SCAN] Analyze current ${visionFeed.sourceType} visual frame (${visionFeed.resolution}). Detected ${visionFeed.detectedBoxes.length} visual bounding boxes and ${visionFeed.ocrSnippets.length} OCR text snippets. Provide visual grounding and scene understanding.`;
+
+    setObservationText('Scanning scene with Gemini and ContextCore...');
+
+    try {
+      let analysisResult = '';
+
+      // Sync visual anchor with backend ContextCore REST endpoint
+      await apiClient.saveContext({
+        session_id: sessionIdRef.current,
+        modalities: {
+          vision: {
+            source: visionFeed.sourceType,
+            resolution: visionFeed.resolution,
+            status: 'active',
+            boxes_count: visionFeed.detectedBoxes.length,
+            ocr_count: visionFeed.ocrSnippets.length,
+          },
+        },
+        active_anchors: [
+          {
+            modality: 'vision',
+            title: `Visual Snapshot: ${visionFeed.sourceType}`,
+            source: `Vision Sensor (${visionFeed.resolution})`,
+            summary: `Detected ${visionFeed.detectedBoxes.length} UI widgets and OCR text elements.`,
+            token_weight: 280,
+          },
+        ],
+      });
+
+      if (wsClient.getStatus() === 'connected') {
+        setLoopStage('UNDERSTANDS');
+        const replyPromise = new Promise<string>((resolve, reject) => {
+          const timeout = setTimeout(() => reject(new Error('WebSocket timeout')), 30000);
+          const unsub = wsClient.onMessage((payload) => {
+            if (payload.response || payload.message) {
+              clearTimeout(timeout);
+              unsub();
+              resolve(payload.response || payload.message || '');
+            } else if (payload.error) {
+              clearTimeout(timeout);
+              unsub();
+              reject(new Error(payload.error));
+            }
+          });
+        });
+
+        wsClient.sendMessage({
+          type: 'vision_scan',
+          message: scanPrompt,
+          modality: 'vision',
+          source: visionFeed.sourceType,
+        });
+
+        analysisResult = await replyPromise;
+      } else {
+        setLoopStage('UNDERSTANDS');
+        const res = await apiClient.sendChatMessage(scanPrompt, sessionIdRef.current);
+        analysisResult = res.response;
+      }
+
+      setLoopStage('REASONS');
+      setObservationText(analysisResult);
+
+      addAnchor({
+        modality: 'vision',
+        title: `Visual Grounding (${visionFeed.sourceType})`,
+        source: `Vision Sensor (${visionFeed.resolution})`,
+        summary: analysisResult.slice(0, 140),
+        tokenWeight: 280,
+        isPinned: false,
+      });
+
+      setLoopStage('VERIFIES');
+      setTimeout(() => {
+        setAgentState(streamActive ? 'observing' : 'idle');
+      }, 2000);
+    } catch (err) {
+      console.error('[VisionPage] Scan analysis error:', err);
+      setObservationText(`Scan analysis error: ${(err as Error).message}`);
+      addAnchor({
+        modality: 'vision',
+        title: 'Visual Snapshot: Screen Context',
+        source: 'Vision Sensor (1920x1080)',
+        summary: 'Detected UI widgets, code editor, and document notes with 2 bounding anchors.',
+        tokenWeight: 280,
+        isPinned: false,
+      });
+      setTimeout(() => {
+        setAgentState(streamActive ? 'observing' : 'idle');
+      }, 2000);
+    }
   };
 
   useEffect(() => {
@@ -283,9 +459,10 @@ export const VisionPage: React.FC = () => {
                 {agentState === 'observing' ? 'MIRA is Observing ✨' : 'MIRA Eyes Ready'}
               </h3>
               <p className="observer-status-desc">
-                {agentState === 'observing'
-                  ? 'Analyzing visual frames and mapping detected objects into ContextCore.'
-                  : 'Start a stream or upload an image to begin real-time observation.'}
+                {observationText ||
+                  (agentState === 'observing'
+                    ? 'Analyzing visual frames and mapping detected objects into ContextCore.'
+                    : 'Start a stream or upload an image to begin real-time observation.')}
               </p>
             </div>
           </div>

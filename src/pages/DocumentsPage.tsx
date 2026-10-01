@@ -1,5 +1,6 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useMira } from '../context/MiraContext';
+import { apiClient, wsClient } from '../services';
 import {
   FileText,
   Upload,
@@ -25,6 +26,105 @@ export const DocumentsPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const sessionIdRef = useRef<string>(`mira-docs-${Date.now().toString(36)}`);
+
+  const totalTokens = documents.reduce((sum, d) => sum + (d.tokenCount || 0), 0);
+
+  // Connect WebSocket and sync ContextCore on mount
+  useEffect(() => {
+    const sessionId = sessionIdRef.current;
+    wsClient.connect(sessionId).catch((err) => {
+      console.warn('[DocumentsPage] WebSocket initial connect:', err);
+    });
+
+    // Synchronize initial document collection with backend ContextCore
+    apiClient.saveContext({
+      session_id: sessionId,
+      modalities: {
+        documents: {
+          count: documents.length,
+          total_tokens: totalTokens,
+          status: 'ready',
+          updated_at: new Date().toISOString(),
+        },
+      },
+      active_anchors: documents.map((doc) => ({
+        modality: 'documents',
+        title: `Doc: ${doc.name}`,
+        source: `Uploaded: ${doc.name}`,
+        summary: doc.summary || `Indexed ${doc.tokenCount} tokens.`,
+        token_weight: doc.tokenCount || 120,
+      })),
+    }).catch((err) => console.warn('[DocumentsPage] Initial context sync error:', err));
+
+    return () => {
+      wsClient.disconnect();
+    };
+  }, []);
+
+  const syncDocumentsToBackend = (updatedDocs: typeof documents, eventMsg?: string) => {
+    const sessionId = sessionIdRef.current;
+    const tokens = updatedDocs.reduce((sum, d) => sum + (d.tokenCount || 0), 0);
+
+    apiClient.saveContext({
+      session_id: sessionId,
+      modalities: {
+        documents: {
+          count: updatedDocs.length,
+          total_tokens: tokens,
+          status: 'ready',
+          updated_at: new Date().toISOString(),
+        },
+      },
+      active_anchors: updatedDocs.map((doc) => ({
+        modality: 'documents',
+        title: `Doc: ${doc.name}`,
+        source: `Uploaded: ${doc.name}`,
+        summary: doc.summary || `Indexed ${doc.tokenCount} tokens.`,
+        token_weight: doc.tokenCount || 120,
+      })),
+    }).catch((err) => console.warn('[DocumentsPage] Save context error:', err));
+
+    if (wsClient.getStatus() === 'connected' && eventMsg) {
+      wsClient.sendMessage({
+        type: 'document_event',
+        message: eventMsg,
+        documents_count: updatedDocs.length,
+        total_tokens: tokens,
+      });
+    }
+  };
+
+  const handleUploadFiles = (files: File[]) => {
+    files.forEach((file) => {
+      addDocument(file);
+      const estTokens = Math.max(120, Math.round(file.size / 40));
+      const msg = `MIRA ingested document: ${file.name} (${Math.round(file.size / 1024)} KB, ~${estTokens} tokens). Stored in ContextCore semantic store.`;
+
+      if (wsClient.getStatus() === 'connected') {
+        wsClient.sendMessage({
+          type: 'document_uploaded',
+          filename: file.name,
+          filesize: file.size,
+          token_count: estTokens,
+          message: msg,
+        });
+      }
+    });
+
+    setTimeout(() => {
+      const sessionId = sessionIdRef.current;
+      apiClient.saveContext({
+        session_id: sessionId,
+        modalities: {
+          documents: {
+            status: 'ready',
+            updated_at: new Date().toISOString(),
+          },
+        },
+      }).catch((err) => console.warn('[DocumentsPage] Context sync error:', err));
+    }, 100);
+  };
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
@@ -39,21 +139,25 @@ export const DocumentsPage: React.FC = () => {
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      Array.from(e.dataTransfer.files).forEach((file) => addDocument(file));
+      handleUploadFiles(Array.from(e.dataTransfer.files));
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      Array.from(e.target.files).forEach((file) => addDocument(file));
+      handleUploadFiles(Array.from(e.target.files));
     }
+  };
+
+  const handleRemoveDocument = (docId: string, docName: string) => {
+    removeDocument(docId);
+    const remaining = documents.filter((d) => d.id !== docId);
+    syncDocumentsToBackend(remaining, `MIRA removed document: ${docName} from ContextCore semantic store.`);
   };
 
   const filteredDocs = documents.filter((doc) =>
     doc.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  const totalTokens = documents.reduce((sum, d) => sum + (d.tokenCount || 0), 0);
 
   const getDocIcon = (name: string) => {
     if (name.endsWith('.pdf')) {
@@ -191,7 +295,7 @@ export const DocumentsPage: React.FC = () => {
                   </button>
                   <button
                     className="doc-action-btn delete"
-                    onClick={() => removeDocument(doc.id)}
+                    onClick={() => handleRemoveDocument(doc.id, doc.name)}
                     title="Remove from ContextCore"
                   >
                     <Trash2 size={13} />
