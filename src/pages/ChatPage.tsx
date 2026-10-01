@@ -4,6 +4,7 @@ import { MessageItem } from '../components/conversation/MessageItem';
 import { MiraAvatar } from '../components/mascot/MiraAvatar';
 import { apiClient, wsClient } from '../services';
 import { MultimodalMessage } from '../types/multimodal';
+import { LoopStage } from '../types/agent';
 import {
   Sparkles,
   Volume2,
@@ -14,6 +15,12 @@ import {
   Send,
   Paperclip,
   X,
+  Eye,
+  FileText,
+  Lightbulb,
+  Play,
+  Layers,
+  Activity,
 } from 'lucide-react';
 
 const PROMPT_SUGGESTIONS = [
@@ -22,6 +29,30 @@ const PROMPT_SUGGESTIONS = [
   'Check system pods and verify cluster health',
   'Explain how ContextCore integrates audio and vision',
 ];
+
+const COGNITIVE_STAGES: Array<{ id: LoopStage; label: string; icon: typeof Mic }> = [
+  { id: 'HEARS', label: 'HEARS', icon: Mic },
+  { id: 'SEES', label: 'SEES', icon: Eye },
+  { id: 'UNDERSTANDS', label: 'UNDERSTANDS', icon: Lightbulb },
+  { id: 'REASONS', label: 'REASONS', icon: Sparkles },
+  { id: 'ACTS', label: 'ACTS', icon: Play },
+  { id: 'VERIFIES', label: 'VERIFIES', icon: ShieldCheck },
+];
+
+const STATE_DISPLAY: Record<string, { label: string; icon: string }> = {
+  idle: { label: 'Idle / Ready', icon: '💖' },
+  listening: { label: 'Listening Live', icon: '👂' },
+  observing: { label: 'Observing Scene', icon: '👀' },
+  thinking: { label: 'Thinking Deeply', icon: '💭' },
+  processing: { label: 'Processing Anchors', icon: '⚡' },
+  planning: { label: 'Planning Safe Action', icon: '🧠' },
+  speaking: { label: 'Speaking Out', icon: '💬' },
+  'waiting for approval': { label: 'Waiting for Approval', icon: '⏳' },
+  executing: { label: 'Executing Tool', icon: '⚡' },
+  verifying: { label: 'Verifying Telemetry', icon: '🔍' },
+  completed: { label: 'Task Completed', icon: '🎉' },
+  error: { label: 'Needs Attention', icon: '🥺' },
+};
 
 export const ChatPage: React.FC = () => {
   const {
@@ -35,6 +66,9 @@ export const ChatPage: React.FC = () => {
     loopStage,
     setLoopStage,
     addDocument,
+    documents,
+    visionFeed,
+    contextCore,
   } = useMira();
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -87,7 +121,7 @@ export const ChatPage: React.FC = () => {
 
       if (wsClient.getStatus() === 'connected') {
         const replyPromise = new Promise<string>((resolve, reject) => {
-          const timeout = setTimeout(() => reject(new Error('WebSocket timeout')), 15000);
+          const timeout = setTimeout(() => reject(new Error('WebSocket timeout')), 30000);
           const unsubscribe = wsClient.onMessage((payload) => {
             if (payload.response || payload.message) {
               clearTimeout(timeout);
@@ -162,6 +196,11 @@ export const ChatPage: React.FC = () => {
     setAttachedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
+  const hasActivePerception =
+    audioStream.isListening ||
+    (visionFeed.isActive && (visionFeed.sourceType === 'screen' || visionFeed.sourceType === 'camera')) ||
+    documents.length > 0;
+
   return (
     <div className="page-container chat-page-container">
       {/* Chat Page Header */}
@@ -228,130 +267,224 @@ export const ChatPage: React.FC = () => {
         </div>
       )}
 
-      {/* Main Spacious Chat Messages Area */}
-      <div className="chat-messages-viewport" ref={scrollRef}>
-        {chatMessages.map((msg) => (
-          <MessageItem key={msg.id} message={msg} />
-        ))}
+      {/* Responsive Dual-Pane Layout: Left (Messages + Perception + Composer) | Right (Companion & Loop HUD) */}
+      <div className="chat-dual-grid">
+        {/* Left Pane: Conversation Viewport + Active Perception + Composer */}
+        <div className="chat-left-pane">
+          <div className="chat-messages-viewport" ref={scrollRef}>
+            {chatMessages.map((msg) => (
+              <MessageItem key={msg.id} message={msg} />
+            ))}
 
-        {/* Live Friendly Mascot Reaction during processing */}
-        {(agentState === 'thinking' || agentState === 'processing' || agentState === 'planning') && (
-          <div className="message-bubble mira thinking-bubble">
-            <div className="thinking-mascot-row">
-              <MiraAvatar size={34} state="thinking" theme={theme} accessory={mascotAccessory} />
-              <div className="thinking-text-group">
-                <span className="thinking-label">MIRA is thinking... ✨</span>
-                <span className="thinking-sub">Synthesizing audio and ContextCore anchors</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {agentState === 'speaking' && (
-          <div className="message-bubble mira speaking-bubble">
-            <div className="thinking-mascot-row">
-              <MiraAvatar size={34} state="speaking" theme={theme} accessory={mascotAccessory} />
-              <div className="thinking-text-group">
-                <span className="thinking-label">MIRA is speaking 💬</span>
-                <span className="thinking-sub">Transmitting real-time response</span>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Suggestion Chips */}
-      <div className="chat-quick-suggestions">
-        <span className="suggestions-label">Suggestions:</span>
-        <div className="suggestions-scroll">
-          {PROMPT_SUGGESTIONS.map((prompt, idx) => (
-            <button
-              key={idx}
-              className="chat-prompt-chip"
-              onClick={() => handleSendMessage(prompt)}
-            >
-              <Sparkles size={12} style={{ color: 'var(--brand-primary)' }} />
-              <span>{prompt}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Composer Input Bar */}
-      <div className="chat-composer-dock">
-        <div className="input-bar-container">
-          {attachedFiles.length > 0 && (
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingBottom: 4 }}>
-              {attachedFiles.map((file, idx) => (
-                <div
-                  key={idx}
-                  className="mira-badge"
-                  style={{
-                    background: 'var(--brand-primary-light)',
-                    color: 'var(--brand-primary)',
-                    border: '1px solid var(--border-subtle)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 4,
-                  }}
-                >
-                  <Paperclip size={10} />
-                  <span>{file}</span>
-                  <X
-                    size={11}
-                    style={{ cursor: 'pointer', marginLeft: 2 }}
-                    onClick={() => removeAttachment(idx)}
-                  />
+            {/* Live Friendly Mascot Reaction during processing */}
+            {(agentState === 'thinking' || agentState === 'processing' || agentState === 'planning') && (
+              <div className="message-bubble mira thinking-bubble">
+                <div className="thinking-mascot-row">
+                  <MiraAvatar size={34} state="thinking" theme={theme} accessory={mascotAccessory} />
+                  <div className="thinking-text-group">
+                    <span className="thinking-label">MIRA is thinking... ✨</span>
+                    <span className="thinking-sub">Synthesizing audio and ContextCore anchors</span>
+                  </div>
                 </div>
-              ))}
+              </div>
+            )}
+
+            {agentState === 'speaking' && (
+              <div className="message-bubble mira speaking-bubble">
+                <div className="thinking-mascot-row">
+                  <MiraAvatar size={34} state="speaking" theme={theme} accessory={mascotAccessory} />
+                  <div className="thinking-text-group">
+                    <span className="thinking-label">MIRA is speaking 💬</span>
+                    <span className="thinking-sub">Transmitting real-time response</span>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Active Perception Chips: Only shown when corresponding modality is active */}
+          {hasActivePerception && (
+            <div className="active-perception-bar">
+              <span className="perception-label">
+                <Activity size={12} />
+                <span>Active Perception:</span>
+              </span>
+              {audioStream.isListening && (
+                <span className="perception-chip voice-active">
+                  <Mic size={11} />
+                  <span>Voice Stream</span>
+                </span>
+              )}
+              {visionFeed.isActive && (visionFeed.sourceType === 'screen' || visionFeed.sourceType === 'camera') && (
+                <span className="perception-chip vision-active">
+                  <Eye size={11} />
+                  <span>{visionFeed.sourceType === 'screen' ? 'Screen Feed' : 'Camera Feed'}</span>
+                </span>
+              )}
+              {documents.length > 0 && (
+                <span className="perception-chip docs-active">
+                  <FileText size={11} />
+                  <span>{documents.length} Doc{documents.length > 1 ? 's' : ''}</span>
+                </span>
+              )}
             </div>
           )}
 
-          <div className="input-composer">
-            <input
-              type="file"
-              ref={fileInputRef}
-              style={{ display: 'none' }}
-              onChange={handleFileUpload}
-            />
+          {/* Quick Suggestion Chips */}
+          <div className="chat-quick-suggestions">
+            <span className="suggestions-label">Suggestions:</span>
+            <div className="suggestions-scroll">
+              {PROMPT_SUGGESTIONS.map((prompt, idx) => (
+                <button
+                  key={idx}
+                  className="chat-prompt-chip"
+                  onClick={() => handleSendMessage(prompt)}
+                >
+                  <Sparkles size={12} style={{ color: 'var(--brand-primary)' }} />
+                  <span>{prompt}</span>
+                </button>
+              ))}
+            </div>
+          </div>
 
-            <button
-              className="mira-btn mira-btn-icon"
-              onClick={() => fileInputRef.current?.click()}
-              title="Attach Document or Image"
-            >
-              <Paperclip size={17} style={{ color: 'var(--text-muted)' }} />
-            </button>
+          {/* Composer Input Bar */}
+          <div className="chat-composer-dock">
+            <div className="input-bar-container">
+              {attachedFiles.length > 0 && (
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingBottom: 4 }}>
+                  {attachedFiles.map((file, idx) => (
+                    <div
+                      key={idx}
+                      className="mira-badge"
+                      style={{
+                        background: 'var(--brand-primary-light)',
+                        color: 'var(--brand-primary)',
+                        border: '1px solid var(--border-subtle)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                      }}
+                    >
+                      <Paperclip size={10} />
+                      <span>{file}</span>
+                      <X
+                        size={11}
+                        style={{ cursor: 'pointer', marginLeft: 2 }}
+                        onClick={() => removeAttachment(idx)}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
 
-            <input
-              type="text"
-              className="input-field"
-              placeholder="Speak or type a message to MIRA..."
-              value={inputText}
-              onChange={(e) => setInputText(e.target.value)}
-              onKeyDown={handleKeyDown}
-            />
+              <div className="input-composer">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  style={{ display: 'none' }}
+                  onChange={handleFileUpload}
+                />
 
-            <button
-              className={`mic-toggle-btn ${audioStream.isListening ? 'listening' : ''}`}
-              onClick={toggleListening}
-              title={audioStream.isListening ? 'Stop Listening' : 'Start Voice Streaming'}
-            >
-              {audioStream.isListening ? <MicOff size={18} /> : <Mic size={18} />}
-            </button>
+                <button
+                  className="mira-btn mira-btn-icon"
+                  onClick={() => fileInputRef.current?.click()}
+                  title="Attach Document or Image"
+                >
+                  <Paperclip size={17} style={{ color: 'var(--text-muted)' }} />
+                </button>
 
-            <button
-              className="mira-btn mira-btn-icon send-btn"
-              onClick={() => handleSendMessage(inputText)}
-              disabled={!inputText.trim() && attachedFiles.length === 0}
-              title="Send message"
-            >
-              <Send size={16} style={{ color: inputText.trim() ? 'var(--brand-primary)' : 'var(--text-muted)' }} />
-            </button>
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="Speak or type a message to MIRA..."
+                  value={inputText}
+                  onChange={(e) => setInputText(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                />
+
+                <button
+                  className={`mic-toggle-btn ${audioStream.isListening ? 'listening' : ''}`}
+                  onClick={toggleListening}
+                  title={audioStream.isListening ? 'Stop Listening' : 'Start Voice Streaming'}
+                >
+                  {audioStream.isListening ? <MicOff size={18} /> : <Mic size={18} />}
+                </button>
+
+                <button
+                  className="mira-btn mira-btn-icon send-btn"
+                  onClick={() => handleSendMessage(inputText)}
+                  disabled={!inputText.trim() && attachedFiles.length === 0}
+                  title="Send message"
+                >
+                  <Send size={16} style={{ color: inputText.trim() ? 'var(--brand-primary)' : 'var(--text-muted)' }} />
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Pane: MIRA Companion + ContextCore HUD */}
+        <div className="chat-right-companion-panel">
+          {/* MIRA Companion Prominent Mascot Card (~90px) */}
+          <div className="companion-mascot-card">
+            <div className="companion-avatar-stage">
+              <MiraAvatar
+                size={92}
+                state={agentState}
+                theme={theme}
+                accessory={mascotAccessory}
+                interactive={true}
+              />
+            </div>
+            <div className="companion-mascot-name">MIRA Companion ✨</div>
+            <span className="companion-mascot-tag">Real-Time Multimodal Assistant</span>
+
+            <div className={`companion-state-pill ${agentState}`}>
+              <span>{STATE_DISPLAY[agentState]?.icon || '✨'}</span>
+              <span>{STATE_DISPLAY[agentState]?.label || agentState}</span>
+            </div>
+          </div>
+
+          {/* 6-Stage Loop HUD Card */}
+          <div className="cognitive-loop-hud-card">
+            <div className="loop-hud-header">
+              <div className="loop-hud-title">
+                <Layers size={13} style={{ color: 'var(--brand-primary)' }} />
+                <span>Cognitive Loop</span>
+              </div>
+              <span className="mira-badge mira-badge-mono" style={{ background: 'var(--brand-primary-light)', color: 'var(--brand-primary)', fontWeight: 800 }}>
+                {loopStage}
+              </span>
+            </div>
+
+            <div className="loop-stages-stack">
+              {COGNITIVE_STAGES.map((st) => {
+                const Icon = st.icon;
+                const isActive = loopStage === st.id;
+                return (
+                  <div key={st.id} className={`loop-stage-row ${isActive ? 'active' : ''}`}>
+                    <div className="loop-stage-left">
+                      <Icon size={13} />
+                      <span>{st.label}</span>
+                    </div>
+                    {isActive && <span className="loop-stage-pill-badge">Active</span>}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* ContextCore Anchors summary */}
+            <div className="contextcore-mini-anchors">
+              <span>ContextCore Anchors:</span>
+              <strong style={{ color: 'var(--brand-primary)' }}>
+                {contextCore.activeAnchors.length} tracked
+              </strong>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
 };
+
 
