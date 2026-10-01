@@ -6,15 +6,20 @@ export type TaskCategory = 'work' | 'study' | 'personal' | 'health';
 export type TaskPriority = 'high' | 'medium' | 'low';
 export type MoodEmoji = '🤩' | '😊' | '🧘' | '☕' | '😴';
 
+export type TaskTimeframe = 'today' | 'upcoming';
+
 export interface MyDayTask {
   id: string;
   title: string;
-  category: TaskCategory;
+  category?: TaskCategory;
   priority: TaskPriority;
   completed: boolean;
+  timeframe: TaskTimeframe;
   dueTime?: string;
+  dueDate?: string;
   createdAt: string;
 }
+
 
 export interface MyDayReminder {
   id: string;

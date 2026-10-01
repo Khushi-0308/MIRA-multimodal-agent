@@ -41,7 +41,9 @@ import {
   Coffee,
   AlertCircle,
   Mic,
+  Edit3,
 } from 'lucide-react';
+
 
 const MOODS: Array<{ emoji: MoodEmoji; label: string }> = [
   { emoji: '🤩', label: 'Super Energetic' },
@@ -77,12 +79,27 @@ export const MyDayPage: React.FC = () => {
   );
 
   // Filter & Input states
+  // Daily Planner State
+  const [plannerTab, setPlannerTab] = useState<'today' | 'upcoming'>('today');
   const [taskFilter, setTaskFilter] = useState<'all' | 'pending' | 'completed' | TaskCategory>('all');
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+
+  // New Task Form State
   const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [newTaskCategory, setNewTaskCategory] = useState<TaskCategory>('work');
+  const [newTaskCategory, setNewTaskCategory] = useState<TaskCategory | 'none'>('work');
   const [newTaskPriority, setNewTaskPriority] = useState<TaskPriority>('medium');
   const [newTaskTime, setNewTaskTime] = useState('');
+  const [newTaskDate, setNewTaskDate] = useState('');
+  const [newTaskTimeframe, setNewTaskTimeframe] = useState<'today' | 'upcoming'>('today');
   const [isAddingTask, setIsAddingTask] = useState(false);
+
+  // Edit Task Form State
+  const [editTitle, setEditTitle] = useState('');
+  const [editCategory, setEditCategory] = useState<TaskCategory | 'none'>('work');
+  const [editPriority, setEditPriority] = useState<TaskPriority>('medium');
+  const [editTime, setEditTime] = useState('');
+  const [editDate, setEditDate] = useState('');
+  const [editTimeframe, setEditTimeframe] = useState<'today' | 'upcoming'>('today');
 
   // New Reminder state
   const [newReminderText, setNewReminderText] = useState('');
@@ -137,10 +154,23 @@ export const MyDayPage: React.FC = () => {
   }).format(new Date());
 
   // Task Calculations
-  const completedTasksCount = tasks.filter((t) => t.completed).length;
-  const totalTasksCount = tasks.length;
-  const taskProgressPct = totalTasksCount > 0 ? Math.round((completedTasksCount / totalTasksCount) * 100) : 100;
+  const todayTasks = tasks.filter((t) => (t.timeframe || 'today') === 'today');
+  const upcomingTasks = tasks.filter((t) => t.timeframe === 'upcoming');
+
+  const currentTabTasks = plannerTab === 'today' ? todayTasks : upcomingTasks;
+  const completedCurrentTab = currentTabTasks.filter((t) => t.completed).length;
+  const totalCurrentTab = currentTabTasks.length;
+  const currentTabProgressPct = totalCurrentTab > 0 ? Math.round((completedCurrentTab / totalCurrentTab) * 100) : 100;
+
+  const totalCompletedAll = tasks.filter((t) => t.completed).length;
+  const totalTasksAll = tasks.length;
+  const overallProgressPct = totalTasksAll > 0 ? Math.round((totalCompletedAll / totalTasksAll) * 100) : 100;
+
+  const completedTasksCount = totalCompletedAll;
+  const totalTasksCount = totalTasksAll;
+  const taskProgressPct = overallProgressPct;
   const activeRemindersCount = reminders.filter((r) => !r.dismissed).length;
+
 
   // Task Handlers
   const handleToggleTask = (id: string) => {
@@ -156,22 +186,58 @@ export const MyDayPage: React.FC = () => {
     const task: MyDayTask = {
       id: `task-${Date.now()}`,
       title: newTaskTitle.trim(),
-      category: newTaskCategory,
+      category: newTaskCategory === 'none' ? undefined : newTaskCategory,
       priority: newTaskPriority,
       completed: false,
+      timeframe: newTaskTimeframe || plannerTab,
       dueTime: newTaskTime.trim() || undefined,
+      dueDate: newTaskDate.trim() || (newTaskTimeframe === 'upcoming' ? 'Upcoming' : undefined),
       createdAt: new Date().toISOString(),
     };
 
     setTasks((prev) => [task, ...prev]);
     setNewTaskTitle('');
     setNewTaskTime('');
+    setNewTaskDate('');
     setIsAddingTask(false);
+  };
+
+  const startEditTask = (task: MyDayTask) => {
+    setEditingTaskId(task.id);
+    setEditTitle(task.title);
+    setEditCategory(task.category || 'none');
+    setEditPriority(task.priority || 'medium');
+    setEditTime(task.dueTime || '');
+    setEditDate(task.dueDate || '');
+    setEditTimeframe(task.timeframe || 'today');
+  };
+
+  const handleSaveEditTask = (id: string, e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTitle.trim()) return;
+
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === id
+          ? {
+              ...t,
+              title: editTitle.trim(),
+              category: editCategory === 'none' ? undefined : editCategory,
+              priority: editPriority,
+              timeframe: editTimeframe,
+              dueTime: editTime.trim() || undefined,
+              dueDate: editDate.trim() || undefined,
+            }
+          : t
+      )
+    );
+    setEditingTaskId(null);
   };
 
   const handleDeleteTask = (id: string) => {
     setTasks((prev) => prev.filter((t) => t.id !== id));
   };
+
 
   // Reminder Handlers
   const handleAddReminder = (e: React.FormEvent) => {
@@ -448,30 +514,70 @@ export const MyDayPage: React.FC = () => {
         </form>
       </div>
 
-      {/* Main 2-Column Dashboard Grid: Tasks & Reminders/Schedule */}
+      {/* Main 2-Column Dashboard Grid: Daily Planner & Reminders/Schedule */}
       <div className="my-day-main-grid">
-        {/* Left Column: Today's Tasks Checklist */}
+        {/* Left Column: Daily Planner Checklist & Timeframe Manager */}
         <div className="my-day-column tasks-column">
-          <div className="mira-card my-day-card">
-            <div className="mira-card-header">
+          <div className="mira-card my-day-card daily-planner-card">
+            {/* Planner Top Header */}
+            <div className="mira-card-header planner-card-header">
               <div className="mira-card-title">
-                <CheckCircle2 size={17} style={{ color: 'var(--brand-primary)' }} />
-                <span>Today's Tasks</span>
-                <span className="tasks-count-pill">{completedTasksCount}/{totalTasksCount}</span>
+                <CheckCircle2 size={18} style={{ color: 'var(--brand-primary)' }} />
+                <span>Daily Planner</span>
+              </div>
+
+              {/* Today vs Upcoming View Tab Switcher */}
+              <div className="planner-timeframe-tabs">
+                <button
+                  className={`planner-tab-btn ${plannerTab === 'today' ? 'active' : ''}`}
+                  onClick={() => setPlannerTab('today')}
+                >
+                  <Sun size={13} />
+                  <span>Today ({todayTasks.length})</span>
+                </button>
+                <button
+                  className={`planner-tab-btn ${plannerTab === 'upcoming' ? 'active' : ''}`}
+                  onClick={() => setPlannerTab('upcoming')}
+                >
+                  <Calendar size={13} />
+                  <span>Upcoming ({upcomingTasks.length})</span>
+                </button>
               </div>
 
               <button
                 className="mira-btn mira-btn-primary add-task-btn"
-                onClick={() => setIsAddingTask(!isAddingTask)}
+                onClick={() => {
+                  setNewTaskTimeframe(plannerTab);
+                  setIsAddingTask(!isAddingTask);
+                }}
               >
                 {isAddingTask ? <X size={14} /> : <Plus size={14} />}
                 <span>{isAddingTask ? 'Cancel' : 'Add Task'}</span>
               </button>
             </div>
 
+            {/* Active Tab Progress Mini-Banner */}
+            <div className="planner-progress-strip">
+              <div className="planner-progress-info">
+                <span className="planner-progress-title">
+                  {plannerTab === 'today' ? "Today's Completion" : "Upcoming Scheduled Tasks"}
+                </span>
+                <span className="planner-progress-pct font-mono">
+                  {completedCurrentTab}/{totalCurrentTab} ({currentTabProgressPct}%)
+                </span>
+              </div>
+              <div className="planner-progress-bar-track">
+                <div
+                  className="planner-progress-bar-fill"
+                  style={{ width: `${currentTabProgressPct}%` }}
+                />
+              </div>
+            </div>
+
             {/* Inline Add Task Form */}
             {isAddingTask && (
-              <form className="my-day-inline-form" onSubmit={handleAddTask}>
+              <form className="my-day-inline-form planner-add-form" onSubmit={handleAddTask}>
+                <div className="form-header-title">Create New Task for {newTaskTimeframe === 'today' ? 'Today' : 'Upcoming'}</div>
                 <input
                   type="text"
                   placeholder="Task title (e.g., Review Gemini Vision latency)..."
@@ -481,36 +587,63 @@ export const MyDayPage: React.FC = () => {
                   required
                 />
                 <div className="inline-form-row">
+                  {/* Timeframe selector */}
+                  <select
+                    value={newTaskTimeframe}
+                    onChange={(e) => setNewTaskTimeframe(e.target.value as 'today' | 'upcoming')}
+                    className="form-select-sm"
+                  >
+                    <option value="today">☀️ For Today</option>
+                    <option value="upcoming">📅 Upcoming</option>
+                  </select>
+
+                  {/* Priority selector */}
+                  <select
+                    value={newTaskPriority}
+                    onChange={(e) => setNewTaskPriority(e.target.value as TaskPriority)}
+                    className="form-select-sm"
+                  >
+                    <option value="high">🔴 High Priority</option>
+                    <option value="medium">🟡 Medium Priority</option>
+                    <option value="low">🟢 Low Priority</option>
+                  </select>
+
+                  {/* Optional Category */}
                   <select
                     value={newTaskCategory}
-                    onChange={(e) => setNewTaskCategory(e.target.value as TaskCategory)}
+                    onChange={(e) => setNewTaskCategory(e.target.value as TaskCategory | 'none')}
+                    className="form-select-sm"
                   >
+                    <option value="none">No Category</option>
                     <option value="work">💼 Work</option>
                     <option value="study">📚 Study</option>
                     <option value="personal">💖 Personal</option>
                     <option value="health">🥗 Health</option>
                   </select>
 
-                  <select
-                    value={newTaskPriority}
-                    onChange={(e) => setNewTaskPriority(e.target.value as TaskPriority)}
-                  >
-                    <option value="high">🔴 High Priority</option>
-                    <option value="medium">🟡 Medium</option>
-                    <option value="low">🟢 Low</option>
-                  </select>
-
+                  {/* Due Time */}
                   <input
                     type="text"
-                    placeholder="Time (e.g. 02:00 PM)"
+                    placeholder="Due Time (e.g. 02:00 PM)"
                     value={newTaskTime}
                     onChange={(e) => setNewTaskTime(e.target.value)}
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, minWidth: '120px' }}
                   />
+
+                  {/* Due Date (if upcoming) */}
+                  {newTaskTimeframe === 'upcoming' && (
+                    <input
+                      type="text"
+                      placeholder="Due Date (e.g. Tomorrow)"
+                      value={newTaskDate}
+                      onChange={(e) => setNewTaskDate(e.target.value)}
+                      style={{ flex: 1, minWidth: '120px' }}
+                    />
+                  )}
 
                   <button type="submit" className="mira-btn mira-btn-primary">
                     <Check size={14} />
-                    <span>Save</span>
+                    <span>Save Task</span>
                   </button>
                 </div>
               </form>
@@ -533,61 +666,171 @@ export const MyDayPage: React.FC = () => {
             {/* Tasks List */}
             <div className="tasks-list">
               {filteredTasks.length > 0 ? (
-                filteredTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className={`task-item-card ${task.completed ? 'completed' : ''} priority-${task.priority}`}
-                  >
-                    <button
-                      className={`task-checkbox ${task.completed ? 'checked' : ''}`}
-                      onClick={() => handleToggleTask(task.id)}
-                      title={task.completed ? 'Mark pending' : 'Mark complete'}
-                    >
-                      {task.completed ? <Check size={14} strokeWidth={3} /> : <Circle size={14} />}
-                    </button>
+                filteredTasks.map((task) => {
+                  const isEditingThis = editingTaskId === task.id;
 
-                    <div className="task-content" onClick={() => handleToggleTask(task.id)}>
-                      <span className="task-title">{task.title}</span>
-                      <div className="task-tags">
-                        <span className={`task-tag category-${task.category}`}>
-                          {task.category}
-                        </span>
-                        <span className={`task-tag priority-${task.priority}`}>
-                          {task.priority}
-                        </span>
-                        {task.dueTime && (
-                          <span className="task-tag time-tag">
-                            <Clock size={10} /> {task.dueTime}
+                  if (isEditingThis) {
+                    return (
+                      <form
+                        key={task.id}
+                        className="my-day-inline-form planner-edit-form"
+                        onSubmit={(e) => handleSaveEditTask(task.id, e)}
+                      >
+                        <div className="form-header-title">Edit Task</div>
+                        <input
+                          type="text"
+                          value={editTitle}
+                          onChange={(e) => setEditTitle(e.target.value)}
+                          autoFocus
+                          required
+                        />
+                        <div className="inline-form-row">
+                          <select
+                            value={editTimeframe}
+                            onChange={(e) => setEditTimeframe(e.target.value as 'today' | 'upcoming')}
+                            className="form-select-sm"
+                          >
+                            <option value="today">☀️ Today</option>
+                            <option value="upcoming">📅 Upcoming</option>
+                          </select>
+
+                          <select
+                            value={editPriority}
+                            onChange={(e) => setEditPriority(e.target.value as TaskPriority)}
+                            className="form-select-sm"
+                          >
+                            <option value="high">🔴 High</option>
+                            <option value="medium">🟡 Medium</option>
+                            <option value="low">🟢 Low</option>
+                          </select>
+
+                          <select
+                            value={editCategory}
+                            onChange={(e) => setEditCategory(e.target.value as TaskCategory | 'none')}
+                            className="form-select-sm"
+                          >
+                            <option value="none">No Category</option>
+                            <option value="work">💼 Work</option>
+                            <option value="study">📚 Study</option>
+                            <option value="personal">💖 Personal</option>
+                            <option value="health">🥗 Health</option>
+                          </select>
+
+                          <input
+                            type="text"
+                            placeholder="Due Time"
+                            value={editTime}
+                            onChange={(e) => setEditTime(e.target.value)}
+                            style={{ flex: 1, minWidth: '100px' }}
+                          />
+
+                          {editTimeframe === 'upcoming' && (
+                            <input
+                              type="text"
+                              placeholder="Due Date"
+                              value={editDate}
+                              onChange={(e) => setEditDate(e.target.value)}
+                              style={{ flex: 1, minWidth: '100px' }}
+                            />
+                          )}
+
+                          <button type="submit" className="mira-btn mira-btn-primary">
+                            <Check size={14} />
+                            <span>Save</span>
+                          </button>
+                          <button
+                            type="button"
+                            className="mira-btn my-day-sub-btn"
+                            onClick={() => setEditingTaskId(null)}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={task.id}
+                      className={`task-item-card ${task.completed ? 'completed' : ''} priority-${task.priority}`}
+                    >
+                      <button
+                        className={`task-checkbox ${task.completed ? 'checked' : ''}`}
+                        onClick={() => handleToggleTask(task.id)}
+                        title={task.completed ? 'Mark pending' : 'Mark complete'}
+                      >
+                        {task.completed ? <Check size={14} strokeWidth={3} /> : <Circle size={14} />}
+                      </button>
+
+                      <div className="task-content" onClick={() => handleToggleTask(task.id)}>
+                        <span className="task-title">{task.title}</span>
+                        <div className="task-tags">
+                          {task.category && (
+                            <span className={`task-tag category-${task.category}`}>
+                              {task.category}
+                            </span>
+                          )}
+                          <span className={`task-tag priority-${task.priority}`}>
+                            {task.priority === 'high' ? '🔴 High' : task.priority === 'medium' ? '🟡 Med' : '🟢 Low'}
                           </span>
-                        )}
+                          {task.dueDate && (
+                            <span className="task-tag date-tag">
+                              <Calendar size={10} /> {task.dueDate}
+                            </span>
+                          )}
+                          {task.dueTime && (
+                            <span className="task-tag time-tag">
+                              <Clock size={10} /> {task.dueTime}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="task-item-actions">
+                        <button
+                          className="task-edit-btn"
+                          onClick={() => startEditTask(task)}
+                          title="Edit task"
+                        >
+                          <Edit3 size={13} />
+                        </button>
+                        <button
+                          className="task-delete-btn"
+                          onClick={() => handleDeleteTask(task.id)}
+                          title="Delete task"
+                        >
+                          <Trash2 size={13} />
+                        </button>
                       </div>
                     </div>
-
-                    <button
-                      className="task-delete-btn"
-                      onClick={() => handleDeleteTask(task.id)}
-                      title="Delete task"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                ))
+                  );
+                })
               ) : (
-                /* Empty State for Tasks */
+                /* Empty State for Planner Tab */
                 <div className="my-day-empty-state">
                   <CheckCircle2 size={36} style={{ color: 'var(--brand-mint)' }} />
-                  <h4>No tasks here! 🎉</h4>
+                  <h4>
+                    {plannerTab === 'today' ? 'No tasks for Today! 🎉' : 'No upcoming tasks scheduled 📅'}
+                  </h4>
                   <p>
-                    {taskFilter === 'all'
-                      ? "You're all clear. Add a task above to plan your day."
-                      : `No tasks found matching "${taskFilter}".`}
+                    {plannerTab === 'today'
+                      ? taskFilter === 'all'
+                        ? "You're all clear today. Add a task above to plan your day."
+                        : `No today's tasks found matching "${taskFilter}".`
+                      : taskFilter === 'all'
+                        ? "Plan ahead for tomorrow and future milestones by adding an upcoming task."
+                        : `No upcoming tasks found matching "${taskFilter}".`}
                   </p>
                   <button
                     className="mira-btn mira-btn-secondary"
-                    onClick={() => setIsAddingTask(true)}
+                    onClick={() => {
+                      setNewTaskTimeframe(plannerTab);
+                      setIsAddingTask(true);
+                    }}
                   >
                     <Plus size={14} />
-                    <span>Create a Task</span>
+                    <span>Create a Task for {plannerTab === 'today' ? 'Today' : 'Upcoming'}</span>
                   </button>
                 </div>
               )}
@@ -599,6 +842,7 @@ export const MyDayPage: React.FC = () => {
         <div className="my-day-column reminders-column">
           {/* Important Reminders Card */}
           <div className="mira-card my-day-card">
+
             <div className="mira-card-header">
               <div className="mira-card-title">
                 <Bell size={17} style={{ color: '#ea580c' }} />

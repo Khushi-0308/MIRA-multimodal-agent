@@ -5278,4 +5278,144 @@
   }
 }
 
+/* Planner Timeframe Tabs & Header */
+.planner-card-header {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.planner-timeframe-tabs {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--bg-surface-secondary);
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border-subtle);
+}
+
+.planner-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  border: none;
+  background: transparent;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 140ms ease;
+}
+
+.planner-tab-btn:hover {
+  color: var(--text-primary);
+}
+
+.planner-tab-btn.active {
+  background: var(--bg-surface);
+  color: var(--brand-primary);
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-subtle);
+}
+
+/* Planner Progress Strip */
+.planner-progress-strip {
+  background: var(--bg-surface-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.planner-progress-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+}
+
+.planner-progress-title {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.planner-progress-pct {
+  font-weight: 800;
+  color: #10b981;
+}
+
+.planner-progress-bar-track {
+  height: 6px;
+  background: var(--bg-surface);
+  border-radius: 9999px;
+  overflow: hidden;
+  border: 1px solid var(--border-subtle);
+}
+
+.planner-progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #059669);
+  border-radius: 9999px;
+  transition: width 350ms ease;
+}
+
+/* Form Styles */
+.form-header-title {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  color: var(--brand-primary);
+  letter-spacing: 0.04em;
+}
+
+.form-select-sm {
+  font-size: 11.5px !important;
+  padding: 6px 8px !important;
+}
+
+.planner-edit-form {
+  border-color: #3b82f6 !important;
+  background: rgba(59, 130, 246, 0.04) !important;
+}
+
+.task-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.task-edit-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 140ms ease;
+}
+
+.task-edit-btn:hover {
+  color: var(--brand-primary);
+  background: rgba(244, 63, 94, 0.08);
+}
+
+.task-tag.date-tag {
+  background: var(--bg-surface);
+  color: #9333ea;
+  border: 1px solid rgba(168, 85, 247, 0.2);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+
 
