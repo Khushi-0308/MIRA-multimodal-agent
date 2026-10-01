@@ -2,12 +2,14 @@ import React from 'react';
 import { useMira } from '../../context/MiraContext';
 
 export const AnimatedThemeBackground: React.FC = () => {
-  const { theme, worldSettings } = useMira();
+  const { theme, worldSettings, agentState } = useMira();
   const { atmosphere, particle, intensity, reducedMotion } = worldSettings;
+
+  const normalizedState = (agentState || 'idle').replace(/\s+/g, '-');
 
   return (
     <div
-      className={`theme-animated-bg theme-bg-${theme} atmosphere-${atmosphere} anim-intensity-${intensity} ${reducedMotion ? 'reduced-motion' : ''}`}
+      className={`theme-animated-bg theme-bg-${theme} atmosphere-${atmosphere} anim-intensity-${intensity} state-${normalizedState} ${reducedMotion ? 'reduced-motion' : ''}`}
       aria-hidden="true"
     >
       {/* =========================================================================

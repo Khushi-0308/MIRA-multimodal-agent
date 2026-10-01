@@ -125,7 +125,7 @@ export const MiraAvatar: React.FC<MiraAvatarProps> = ({
 
   return (
     <div
-      className={`mira-mascot-wrapper ${getMotionClass()}`}
+      className={`mira-mascot-wrapper ${getMotionClass()} state-${state.replace(/\s+/g, '-')} theme-${theme}`}
       style={{
         width: size,
         height: size,
@@ -137,9 +137,11 @@ export const MiraAvatar: React.FC<MiraAvatarProps> = ({
         userSelect: 'none',
       }}
       onClick={handleClick}
-      title={`MIRA: ${state} (Click to giggle!)`}
+      title={`MIRA: ${state} (Click to interact!)`}
     >
-      {/* Mascot Aura Visual Glow Effects */}
+      {/* -------------------------------------------------------------
+          1. PERSISTENT WORLD CUSTOMIZATION AURAS (from MIRA Studio)
+          ------------------------------------------------------------- */}
       {aura === 'neon-glow' && (
         <div className="mascot-aura-neon" aria-hidden="true" />
       )}
@@ -153,11 +155,100 @@ export const MiraAvatar: React.FC<MiraAvatarProps> = ({
         <div className="mascot-aura-pulse" aria-hidden="true" />
       )}
 
+      {/* -------------------------------------------------------------
+          2. PHASE 2 REACTIVE STATE AURA & RINGS
+          "Static when idle. Alive when something meaningful happens."
+          ------------------------------------------------------------- */}
+      {/* LISTENING: Attentive expanding acoustic wave ring */}
+      {state === 'listening' && (
+        <div className="mira-reactive-aura mira-reactive-listening" aria-hidden="true">
+          <div className="mira-sonic-ring ring-1" style={{ borderColor: colors.bodyGrad1 }} />
+          <div className="mira-sonic-ring ring-2" style={{ borderColor: colors.bodyGrad2 }} />
+          <div className="mira-sonic-ring ring-3" style={{ borderColor: colors.sparkle }} />
+        </div>
+      )}
+
+      {/* OBSERVING: Focused visual scanning radar and target reticle */}
+      {state === 'observing' && (
+        <div className="mira-reactive-aura mira-reactive-observing" aria-hidden="true">
+          <div className="mira-radar-ring" style={{ borderColor: colors.sparkle }} />
+          <div className="mira-radar-sweep" style={{ background: `conic-gradient(from 0deg, transparent 60%, ${colors.sparkle} 100%)` }} />
+          <div className="mira-target-marker top-left" style={{ borderColor: colors.sparkle }} />
+          <div className="mira-target-marker bottom-right" style={{ borderColor: colors.sparkle }} />
+        </div>
+      )}
+
+      {/* THINKING / PROCESSING / PLANNING: Orbiting reasoning particles */}
+      {(state === 'thinking' || state === 'processing' || state === 'planning') && (
+        <div className="mira-reactive-aura mira-reactive-thinking" aria-hidden="true">
+          <div className="mira-orbit-track">
+            <div className="mira-orbit-node node-1" style={{ backgroundColor: colors.sparkle, boxShadow: `0 0 8px ${colors.sparkle}` }} />
+            <div className="mira-orbit-node node-2" style={{ backgroundColor: colors.bodyGrad1, boxShadow: `0 0 8px ${colors.bodyGrad1}` }} />
+            <div className="mira-orbit-node node-3" style={{ backgroundColor: colors.accessory, boxShadow: `0 0 8px ${colors.accessory}` }} />
+          </div>
+          <div className="mira-reasoning-halo" style={{ background: `radial-gradient(circle, ${colors.shadow} 0%, transparent 70%)` }} />
+        </div>
+      )}
+
+      {/* SPEAKING: Expressive voice resonance pulse */}
+      {state === 'speaking' && (
+        <div className="mira-reactive-aura mira-reactive-speaking" aria-hidden="true">
+          <div className="mira-voice-pulse-ring pulse-1" style={{ borderColor: colors.bodyGrad1 }} />
+          <div className="mira-voice-pulse-ring pulse-2" style={{ borderColor: colors.bodyGrad2 }} />
+        </div>
+      )}
+
+      {/* WAITING FOR APPROVAL: Warm amber cautionary shield pulse */}
+      {state === 'waiting for approval' && (
+        <div className="mira-reactive-aura mira-reactive-waiting" aria-hidden="true">
+          <div className="mira-approval-shield-glow" />
+          <div className="mira-approval-ring" />
+        </div>
+      )}
+
+      {/* EXECUTING: Dynamic high-energy action ring & particle emissions */}
+      {state === 'executing' && (
+        <div className="mira-reactive-aura mira-reactive-executing" aria-hidden="true">
+          <div className="mira-action-spinner" style={{ borderTopColor: colors.sparkle, borderRightColor: colors.bodyGrad1 }} />
+          <div className="mira-energy-burst" style={{ borderColor: colors.accessory }} />
+        </div>
+      )}
+
+      {/* VERIFYING: Precision telemetry scanline & check accent */}
+      {state === 'verifying' && (
+        <div className="mira-reactive-aura mira-reactive-verifying" aria-hidden="true">
+          <div className="mira-verify-laser" />
+          <div className="mira-verify-hud-ring" />
+        </div>
+      )}
+
+      {/* COMPLETED: Celebratory sparkle starburst */}
+      {state === 'completed' && (
+        <div className="mira-reactive-aura mira-reactive-completed" aria-hidden="true">
+          <div className="mira-celebrate-burst">
+            <span className="mira-star-particle p1" style={{ color: colors.sparkle }}>✦</span>
+            <span className="mira-star-particle p2" style={{ color: colors.bodyGrad1 }}>✧</span>
+            <span className="mira-star-particle p3" style={{ color: colors.accessory }}>✦</span>
+            <span className="mira-star-particle p4" style={{ color: colors.bodyGrad2 }}>✧</span>
+          </div>
+        </div>
+      )}
+
+      {/* ERROR: Soft comforting rose/coral caution glow (non-alarming) */}
+      {state === 'error' && (
+        <div className="mira-reactive-aura mira-reactive-error" aria-hidden="true">
+          <div className="mira-error-gentle-glow" />
+        </div>
+      )}
+
+      {/* -------------------------------------------------------------
+          3. MASCOT SVG VECTOR GRAPHIC
+          ------------------------------------------------------------- */}
       <svg
         viewBox="0 0 120 110"
         width={size}
         height={size}
-        style={{ overflow: 'visible' }}
+        style={{ overflow: 'visible', position: 'relative', zIndex: 2 }}
       >
         <defs>
           <linearGradient id={`miraCloudGrad-${theme}`} x1="0" y1="0" x2="1" y2="1">
@@ -173,9 +264,20 @@ export const MiraAvatar: React.FC<MiraAvatarProps> = ({
 
         {/* --- SOUND RADAR WAVES (LISTENING) --- */}
         {state === 'listening' && (
-          <g opacity="0.8">
-            <path d="M 8 40 Q 0 55 8 70" fill="none" stroke={colors.bodyGrad1} strokeWidth="3" strokeLinecap="round" className="mira-pulse-wave" />
-            <path d="M 112 40 Q 120 55 112 70" fill="none" stroke={colors.bodyGrad1} strokeWidth="3" strokeLinecap="round" className="mira-pulse-wave" />
+          <g opacity="0.9" className="mira-listening-soundwaves">
+            <path d="M 6 38 Q -2 55 6 72" fill="none" stroke={colors.bodyGrad1} strokeWidth="3" strokeLinecap="round" className="mira-pulse-wave wave-1" />
+            <path d="M 114 38 Q 122 55 114 72" fill="none" stroke={colors.bodyGrad1} strokeWidth="3" strokeLinecap="round" className="mira-pulse-wave wave-1" />
+            <path d="M -1 32 Q -10 55 -1 78" fill="none" stroke={colors.sparkle} strokeWidth="2" strokeLinecap="round" opacity="0.6" className="mira-pulse-wave wave-2" />
+            <path d="M 121 32 Q 130 55 121 78" fill="none" stroke={colors.sparkle} strokeWidth="2" strokeLinecap="round" opacity="0.6" className="mira-pulse-wave wave-2" />
+          </g>
+        )}
+
+        {/* --- OBSERVING SCAN BEAM --- */}
+        {state === 'observing' && (
+          <g opacity="0.75" className="mira-observing-laser">
+            <line x1="28" y1="58" x2="92" y2="58" stroke={colors.sparkle} strokeWidth="2" strokeDasharray="4 3" className="mira-scan-beam" />
+            <circle cx="28" cy="58" r="2.5" fill={colors.sparkle} />
+            <circle cx="92" cy="58" r="2.5" fill={colors.sparkle} />
           </g>
         )}
 
@@ -277,24 +379,24 @@ export const MiraAvatar: React.FC<MiraAvatarProps> = ({
           </g>
         )}
 
-        {/* 2. Listening: alert wide eyes + round mouth */}
+        {/* 2. Listening: alert wide eyes + attentive round mouth */}
         {state === 'listening' && (
           <g>
             <circle cx="48" cy="58" r="5.2" fill={colors.eyeColor} />
             <circle cx="50" cy="56" r="1.8" fill="#ffffff" />
             <circle cx="72" cy="58" r="5.2" fill={colors.eyeColor} />
             <circle cx="74" cy="56" r="1.8" fill="#ffffff" />
-            <ellipse cx="60" cy="67" rx="3" ry="4" fill={colors.eyeColor} />
+            <ellipse cx="60" cy="67" rx="3.5" ry="4.5" fill={colors.eyeColor} />
           </g>
         )}
 
-        {/* 3. Observing: focused scanning eyes */}
+        {/* 3. Observing: focused scanning eyes with reticle glint */}
         {state === 'observing' && (
           <g>
-            <circle cx="48" cy="58" r="5" fill="none" stroke={colors.sparkle} strokeWidth="1.8" />
-            <circle cx="48" cy="58" r="2.5" fill={colors.eyeColor} />
-            <circle cx="72" cy="58" r="5" fill="none" stroke={colors.sparkle} strokeWidth="1.8" />
-            <circle cx="72" cy="58" r="2.5" fill={colors.eyeColor} />
+            <circle cx="48" cy="58" r="5.5" fill="none" stroke={colors.sparkle} strokeWidth="1.8" />
+            <circle cx="48" cy="58" r="2.8" fill={colors.eyeColor} />
+            <circle cx="72" cy="58" r="5.5" fill="none" stroke={colors.sparkle} strokeWidth="1.8" />
+            <circle cx="72" cy="58" r="2.8" fill={colors.eyeColor} />
             <path d="M 57 66 L 63 66" stroke={colors.eyeColor} strokeWidth="2" strokeLinecap="round" />
           </g>
         )}
@@ -402,6 +504,7 @@ export const MiraAvatar: React.FC<MiraAvatarProps> = ({
             textTransform: 'uppercase',
             boxShadow: 'var(--shadow-sm)',
             border: '2px solid white',
+            zIndex: 5,
           }}
         >
           {state}

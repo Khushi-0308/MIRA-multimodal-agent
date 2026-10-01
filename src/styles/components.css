@@ -7137,6 +7137,560 @@
   line-height: 1.4;
 }
 
+/* ==========================================================================
+   PHASE 2: REACTIVE MIRA DESIGN SYSTEM
+   "Static when idle. Alive when something meaningful happens."
+   ========================================================================== */
+
+/* Mascot Wrapper Base State Layer */
+.mira-mascot-wrapper {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.mira-reactive-aura {
+  position: absolute;
+  inset: -16px;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+  border-radius: 50%;
+}
+
+/* 1. LISTENING: Attentive sonic ripple wave rings */
+.mira-reactive-listening {
+  inset: -22px;
+}
+
+.mira-sonic-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: 0;
+  animation: miraSonicRipple 1.8s cubic-bezier(0.1, 0.7, 0.1, 1) infinite;
+}
+
+.mira-sonic-ring.ring-1 {
+  animation-delay: 0s;
+}
+
+.mira-sonic-ring.ring-2 {
+  animation-delay: 0.6s;
+}
+
+.mira-sonic-ring.ring-3 {
+  animation-delay: 1.2s;
+}
+
+@keyframes miraSonicRipple {
+  0% {
+    transform: scale(0.65);
+    opacity: 0.85;
+  }
+  70% {
+    opacity: 0.35;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+/* 2. OBSERVING: Focused Radar Scanning & Reticle */
+.mira-reactive-observing {
+  inset: -14px;
+}
+
+.mira-radar-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px dashed currentColor;
+  opacity: 0.6;
+  animation: miraRadarSpin 6s linear infinite;
+}
+
+.mira-radar-sweep {
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  opacity: 0.35;
+  animation: miraRadarSpin 2.5s linear infinite;
+}
+
+.mira-target-marker {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-style: solid;
+  border-color: currentColor;
+  opacity: 0.7;
+}
+
+.mira-target-marker.top-left {
+  top: 2px;
+  left: 2px;
+  border-width: 2px 0 0 2px;
+}
+
+.mira-target-marker.bottom-right {
+  bottom: 2px;
+  right: 2px;
+  border-width: 0 2px 2px 0;
+}
+
+@keyframes miraRadarSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+/* 3. THINKING / PLANNING: Orbiting Satellite Particles */
+.mira-reactive-thinking {
+  inset: -20px;
+}
+
+.mira-orbit-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1px dashed rgba(255, 255, 255, 0.2);
+  animation: miraOrbitRevolve 4s linear infinite;
+}
+
+.mira-orbit-node {
+  position: absolute;
+  border-radius: 50%;
+}
+
+.mira-orbit-node.node-1 {
+  width: 8px;
+  height: 8px;
+  top: -4px;
+  left: calc(50% - 4px);
+}
+
+.mira-orbit-node.node-2 {
+  width: 6px;
+  height: 6px;
+  bottom: 4px;
+  left: 4px;
+}
+
+.mira-orbit-node.node-3 {
+  width: 5px;
+  height: 5px;
+  bottom: 6px;
+  right: 6px;
+}
+
+.mira-reasoning-halo {
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  opacity: 0.4;
+  animation: miraReasoningPulse 2.2s ease-in-out infinite alternate;
+}
+
+@keyframes miraOrbitRevolve {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes miraReasoningPulse {
+  0% {
+    transform: scale(0.92);
+    opacity: 0.25;
+  }
+  100% {
+    transform: scale(1.08);
+    opacity: 0.65;
+  }
+}
+
+/* 4. SPEAKING: Vocal Resonance Pulses */
+.mira-reactive-speaking {
+  inset: -14px;
+}
+
+.mira-voice-pulse-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  opacity: 0;
+  animation: miraVoiceWave 1.2s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+.mira-voice-pulse-ring.pulse-1 {
+  animation-delay: 0s;
+}
+
+.mira-voice-pulse-ring.pulse-2 {
+  animation-delay: 0.6s;
+}
+
+@keyframes miraVoiceWave {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.7;
+  }
+  60% {
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(1.22);
+    opacity: 0;
+  }
+}
+
+/* 5. WAITING FOR APPROVAL: Warm Amber Shield Glow */
+.mira-reactive-waiting {
+  inset: -16px;
+}
+
+.mira-approval-shield-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(245, 158, 11, 0.35) 0%, rgba(245, 158, 11, 0) 70%);
+  animation: miraShieldPulse 2s ease-in-out infinite alternate;
+}
+
+.mira-approval-ring {
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  border: 2px dashed #f59e0b;
+  opacity: 0.6;
+  animation: miraRadarSpin 8s linear infinite reverse;
+}
+
+@keyframes miraShieldPulse {
+  0% {
+    transform: scale(0.9);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(1.1);
+    opacity: 0.75;
+  }
+}
+
+/* 6. EXECUTING: High-Energy Action Spinner & Burst */
+.mira-reactive-executing {
+  inset: -18px;
+}
+
+.mira-action-spinner {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  border-top-style: solid;
+  border-right-style: solid;
+  animation: miraActionSpin 0.9s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite;
+  filter: drop-shadow(0 0 6px currentColor);
+}
+
+.mira-energy-burst {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1px dotted currentColor;
+  opacity: 0.5;
+  animation: miraEnergyBurst 1.4s ease-out infinite;
+}
+
+@keyframes miraActionSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes miraEnergyBurst {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.25);
+    opacity: 0;
+  }
+}
+
+/* 7. VERIFYING: Telemetry Scanline & Hud Ring */
+.mira-reactive-verifying {
+  inset: -14px;
+}
+
+.mira-verify-laser {
+  position: absolute;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #10b981, transparent);
+  box-shadow: 0 0 8px #10b981;
+  animation: miraLaserScan 1.6s ease-in-out infinite;
+}
+
+.mira-verify-hud-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(16, 185, 129, 0.45);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
+}
+
+@keyframes miraLaserScan {
+  0% {
+    top: 15%;
+    opacity: 0.3;
+  }
+  50% {
+    top: 85%;
+    opacity: 1;
+  }
+  100% {
+    top: 15%;
+    opacity: 0.3;
+  }
+}
+
+/* 8. COMPLETED: Celebratory Starburst Particles */
+.mira-reactive-completed {
+  inset: -24px;
+}
+
+.mira-celebrate-burst {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mira-star-particle {
+  position: absolute;
+  font-size: 14px;
+  font-weight: 900;
+  animation: miraStarBurst 1.2s cubic-bezier(0.25, 1, 0.5, 1) infinite;
+}
+
+.mira-star-particle.p1 {
+  top: 0;
+  left: 20%;
+  animation-delay: 0s;
+}
+
+.mira-star-particle.p2 {
+  top: 10%;
+  right: 15%;
+  animation-delay: 0.2s;
+}
+
+.mira-star-particle.p3 {
+  bottom: 12%;
+  left: 15%;
+  animation-delay: 0.4s;
+}
+
+.mira-star-particle.p4 {
+  bottom: 8%;
+  right: 20%;
+  animation-delay: 0.6s;
+}
+
+@keyframes miraStarBurst {
+  0% {
+    transform: scale(0.4) translateY(0);
+    opacity: 0;
+  }
+  40% {
+    transform: scale(1.2) translateY(-6px);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(0.6) translateY(-14px);
+    opacity: 0;
+  }
+}
+
+/* 9. ERROR: Gentle Non-Alarming Warm Glow */
+.mira-reactive-error {
+  inset: -14px;
+}
+
+.mira-error-gentle-glow {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(244, 63, 94, 0.35) 0%, transparent 70%);
+  animation: miraGentleError 2.5s ease-in-out infinite alternate;
+}
+
+@keyframes miraGentleError {
+  0% {
+    transform: scale(0.94);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(1.08);
+    opacity: 0.7;
+  }
+}
+
+/* ==========================================================================
+   DYNAMIC BACKGROUND ENVIRONMENT STATE REACTIONS
+   ========================================================================== */
+
+/* State: Listening - Gentle atmospheric intake */
+.theme-animated-bg.state-listening .particle-layer {
+  filter: brightness(1.2);
+  transition: filter 0.5s ease;
+}
+
+.theme-animated-bg.state-listening .rose-petal,
+.theme-animated-bg.state-listening .midnight-star,
+.theme-animated-bg.state-listening .glitter-sparkle,
+.theme-animated-bg.state-listening .floating-orb {
+  animation-duration: 4s !important;
+}
+
+/* State: Thinking / Planning - Ambient orbital drift */
+.theme-animated-bg.state-thinking .atmosphere-layer,
+.theme-animated-bg.state-processing .atmosphere-layer,
+.theme-animated-bg.state-planning .atmosphere-layer {
+  filter: saturate(1.25) brightness(1.08);
+  transition: filter 0.6s ease;
+}
+
+.theme-animated-bg.state-thinking .midnight-orbit-glow,
+.theme-animated-bg.state-thinking .rose-ambient-glow,
+.theme-animated-bg.state-thinking .glitter-ambient-spot {
+  transform: scale(1.15);
+  transition: transform 0.8s ease;
+}
+
+/* State: Executing - Dynamic pulse & energy flow */
+.theme-animated-bg.state-executing .particle-layer {
+  filter: brightness(1.3) contrast(1.1);
+}
+
+.theme-animated-bg.state-executing .rose-petal,
+.theme-animated-bg.state-executing .midnight-star,
+.theme-animated-bg.state-executing .glitter-sparkle,
+.theme-animated-bg.state-executing .matrix-streak {
+  animation-duration: 2s !important;
+}
+
+/* State: Completed - Celebratory ambient flash */
+.theme-animated-bg.state-completed {
+  filter: brightness(1.1);
+  transition: filter 0.5s ease;
+}
+
+/* State: Waiting For Approval - Amber ambient tint */
+.theme-animated-bg.state-waiting-for-approval .atmosphere-layer {
+  filter: sepia(0.2) saturate(1.2);
+  transition: filter 0.5s ease;
+}
+
+/* State: Error - Soothing warm tint */
+.theme-animated-bg.state-error .atmosphere-layer {
+  filter: hue-rotate(-15deg) saturate(1.1);
+  transition: filter 0.6s ease;
+}
+
+/* ==========================================================================
+   THEME-AWARE MASCOT REACTION OVERLAYS
+   ========================================================================== */
+
+/* Liquid Rose Theme */
+.mira-mascot-wrapper.theme-liquid-rose .mira-orbit-track {
+  border-color: rgba(244, 114, 182, 0.35);
+}
+
+/* Midnight Theme */
+.mira-mascot-wrapper.theme-midnight .mira-orbit-track {
+  border-color: rgba(139, 92, 246, 0.45);
+}
+
+/* Glitter Theme */
+.mira-mascot-wrapper.theme-glitter .mira-orbit-track {
+  border-color: rgba(192, 132, 252, 0.5);
+}
+
+/* Bold Theme */
+.mira-mascot-wrapper.theme-bold .mira-radar-ring {
+  border-width: 2.5px;
+  border-style: dotted;
+}
+
+/* Edge Tactical Theme */
+.mira-mascot-wrapper.theme-edge .mira-radar-ring {
+  border-color: rgba(190, 242, 100, 0.7);
+  border-style: solid;
+}
+
+.mira-mascot-wrapper.theme-edge .mira-target-marker {
+  border-color: #bef264;
+}
+
+/* ==========================================================================
+   REDUCED MOTION OVERRIDES FOR REACTIVE MIRA
+   ========================================================================== */
+.theme-animated-bg.reduced-motion .mira-sonic-ring,
+.theme-animated-bg.reduced-motion .mira-radar-ring,
+.theme-animated-bg.reduced-motion .mira-radar-sweep,
+.theme-animated-bg.reduced-motion .mira-orbit-track,
+.theme-animated-bg.reduced-motion .mira-orbit-node,
+.theme-animated-bg.reduced-motion .mira-reasoning-halo,
+.theme-animated-bg.reduced-motion .mira-voice-pulse-ring,
+.theme-animated-bg.reduced-motion .mira-approval-shield-glow,
+.theme-animated-bg.reduced-motion .mira-approval-ring,
+.theme-animated-bg.reduced-motion .mira-action-spinner,
+.theme-animated-bg.reduced-motion .mira-energy-burst,
+.theme-animated-bg.reduced-motion .mira-verify-laser,
+.theme-animated-bg.reduced-motion .mira-star-particle,
+.theme-animated-bg.reduced-motion .mira-error-gentle-glow {
+  animation: none !important;
+  transform: none !important;
+  opacity: 0.5 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mira-sonic-ring,
+  .mira-radar-ring,
+  .mira-radar-sweep,
+  .mira-orbit-track,
+  .mira-orbit-node,
+  .mira-reasoning-halo,
+  .mira-voice-pulse-ring,
+  .mira-approval-shield-glow,
+  .mira-approval-ring,
+  .mira-action-spinner,
+  .mira-energy-burst,
+  .mira-verify-laser,
+  .mira-star-particle,
+  .mira-error-gentle-glow {
+    animation: none !important;
+    transform: none !important;
+    opacity: 0.5 !important;
+  }
+}
+
 
 
 
