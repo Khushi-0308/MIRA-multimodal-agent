@@ -7158,6 +7158,30 @@
   border-radius: 50%;
 }
 
+/* 0. IDLE: Calm subtle organic breathing aura */
+.mira-reactive-idle {
+  inset: -8px;
+}
+
+.mira-idle-breathing-aura {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  opacity: 0.35;
+  animation: miraIdleBreathing 4s ease-in-out infinite alternate;
+}
+
+@keyframes miraIdleBreathing {
+  0% {
+    transform: scale(0.95);
+    opacity: 0.2;
+  }
+  100% {
+    transform: scale(1.05);
+    opacity: 0.4;
+  }
+}
+
 /* 1. LISTENING: Attentive sonic ripple wave rings */
 .mira-reactive-listening {
   inset: -22px;
@@ -7664,6 +7688,7 @@
 .theme-animated-bg.reduced-motion .mira-energy-burst,
 .theme-animated-bg.reduced-motion .mira-verify-laser,
 .theme-animated-bg.reduced-motion .mira-star-particle,
+.theme-animated-bg.reduced-motion .mira-idle-breathing-aura,
 .theme-animated-bg.reduced-motion .mira-error-gentle-glow {
   animation: none !important;
   transform: none !important;
@@ -7684,6 +7709,7 @@
   .mira-energy-burst,
   .mira-verify-laser,
   .mira-star-particle,
+  .mira-idle-breathing-aura,
   .mira-error-gentle-glow {
     animation: none !important;
     transform: none !important;

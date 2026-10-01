@@ -159,6 +159,13 @@ export const MiraAvatar: React.FC<MiraAvatarProps> = ({
           2. PHASE 2 REACTIVE STATE AURA & RINGS
           "Static when idle. Alive when something meaningful happens."
           ------------------------------------------------------------- */}
+      {/* IDLE: Calm subtle organic breathing aura */}
+      {state === 'idle' && (
+        <div className="mira-reactive-aura mira-reactive-idle" aria-hidden="true">
+          <div className="mira-idle-breathing-aura" style={{ background: `radial-gradient(circle, ${colors.shadow} 0%, transparent 65%)` }} />
+        </div>
+      )}
+
       {/* LISTENING: Attentive expanding acoustic wave ring */}
       {state === 'listening' && (
         <div className="mira-reactive-aura mira-reactive-listening" aria-hidden="true">
