@@ -4,7 +4,7 @@
 
 export type TaskCategory = 'work' | 'study' | 'personal' | 'health';
 export type TaskPriority = 'high' | 'medium' | 'low';
-export type MoodEmoji = '🤩' | '😊' | '🧘' | '☕' | '😴';
+export type MoodEmoji = '🤩' | '😊' | '🧘' | '☕' | '😴' | '✨' | '💭' | '💪' | '🌱';
 
 export type TaskTimeframe = 'today' | 'upcoming';
 
@@ -19,7 +19,6 @@ export interface MyDayTask {
   dueDate?: string;
   createdAt: string;
 }
-
 
 export type ReminderRepeat = 'once' | 'daily' | 'weekly';
 export type ReminderPriority = 'low' | 'medium' | 'high' | 'urgent';
@@ -39,7 +38,6 @@ export interface MyDayReminder {
   createdAt: string;
 }
 
-
 export interface MyDayEvent {
   id: string;
   title: string;
@@ -50,9 +48,13 @@ export interface MyDayEvent {
 
 export interface MyDayDiaryEntry {
   id: string;
+  title?: string;
   timestamp: string;
   dateStr: string;
-  mood: MoodEmoji;
-  moodLabel: string;
+  mood?: MoodEmoji;
+  moodLabel?: string;
   text: string;
+  promptUsed?: string;
+  createdAt: string;
+  updatedAt?: string;
 }

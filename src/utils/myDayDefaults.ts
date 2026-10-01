@@ -164,22 +164,49 @@ export const DEFAULT_MY_DAY_EVENTS: MyDayEvent[] = [
   },
 ];
 
+export const MIRA_DAILY_REFLECTION_PROMPTS: string[] = [
+  "What was the highlight or biggest small win of your day?",
+  "What is one challenge you navigated today, and what did it teach you?",
+  "Who or what made you feel genuinely grateful or inspired today?",
+  "What is one positive intention you want to bring into tomorrow?",
+  "Take a slow breath: How are you truly feeling right now, and what does your mind need?",
+  "What was an unexpected lesson, creative idea, or insight from today?",
+  "How did you practice kindness to yourself or someone else today?",
+];
+
 export const DEFAULT_MY_DAY_DIARY: MyDayDiaryEntry[] = [
   {
     id: 'diary-1',
-    timestamp: new Date(Date.now() - 3600 * 1000 * 2).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    dateStr: 'Today',
+    title: 'Breakthrough on Multimodal Vision AI Pipeline',
+    timestamp: new Date(Date.now() - 3600 * 1000 * 3).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    dateStr: 'Today, Oct 2',
     mood: '🤩',
     moodLabel: 'Super Energetic',
-    text: 'Got the multimodal vision and RAG pipeline running flawlessly with Gemini 3.5! Ready to rock the dashboard.',
+    promptUsed: 'What was the highlight or biggest small win of your day?',
+    text: 'Got the multimodal vision and RAG pipeline running flawlessly with Gemini! The responsive feedback loop feels so snappy and natural. Ready to crush the demo!',
+    createdAt: new Date(Date.now() - 3600 * 1000 * 3).toISOString(),
   },
   {
     id: 'diary-2',
-    timestamp: 'Yesterday',
+    title: 'Audio Synthesis & Mindful Focus Session',
+    timestamp: '08:45 PM',
     dateStr: 'Yesterday',
     mood: '☕',
-    moodLabel: 'Deeply Focused',
-    text: 'Connected live Web Speech recognition and audio synthesis. MIRA is sounding very lively and responsive!',
+    moodLabel: 'Deep Focus',
+    promptUsed: 'Take a slow breath: How are you truly feeling right now, and what does your mind need?',
+    text: 'Connected live Web Speech recognition and audio synthesis. Had a quiet 2-hour uninterrupted focus block. Felt calm, centered, and productive.',
+    createdAt: new Date(Date.now() - 3600 * 1000 * 28).toISOString(),
+  },
+  {
+    id: 'diary-3',
+    title: 'Evening Gratitude & Reset',
+    timestamp: '11:15 PM',
+    dateStr: 'Sep 30',
+    mood: '🧘',
+    moodLabel: 'Chill & Mindful',
+    promptUsed: 'Who or what made you feel genuinely grateful or inspired today?',
+    text: 'Grateful for good coffee, smooth debugging sessions, and the supportive team energy. Tomorrow is all about polish and elegance.',
+    createdAt: new Date(Date.now() - 3600 * 1000 * 52).toISOString(),
   },
 ];
 

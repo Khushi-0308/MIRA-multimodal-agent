@@ -17,6 +17,7 @@ import {
   DEFAULT_MY_DAY_REMINDERS,
   DEFAULT_MY_DAY_EVENTS,
   DEFAULT_MY_DAY_DIARY,
+  MIRA_DAILY_REFLECTION_PROMPTS,
   loadSavedState,
   saveState,
 } from '../utils/myDayDefaults';
@@ -45,15 +46,22 @@ import {
   Mic,
   Edit3,
   Repeat,
+  Lock,
+  Unlock,
+  ShieldCheck,
+  Key,
+  Search,
+  RefreshCw,
 } from 'lucide-react';
-
-
 
 const MOODS: Array<{ emoji: MoodEmoji; label: string }> = [
   { emoji: '🤩', label: 'Super Energetic' },
   { emoji: '😊', label: 'Happy & Content' },
   { emoji: '🧘', label: 'Chill & Mindful' },
   { emoji: '☕', label: 'Deep Focus' },
+  { emoji: '✨', label: 'Inspired' },
+  { emoji: '💭', label: 'Reflective' },
+  { emoji: '💪', label: 'Strong & Determined' },
   { emoji: '😴', label: 'Tired & Low Energy' },
 ];
 
@@ -79,10 +87,37 @@ export const MyDayPage: React.FC = () => {
     loadSavedState('mira_my_day_events', DEFAULT_MY_DAY_EVENTS)
   );
   const [diaryEntries, setDiaryEntries] = useState<MyDayDiaryEntry[]>(() =>
-    loadSavedState('mira_my_day_diary', DEFAULT_MY_DAY_DIARY)
+    loadSavedState('mira_secret_diary_vault_v1', DEFAULT_MY_DAY_DIARY)
   );
 
-  // Filter & Input states
+  // Secret Diary Vault Security & State
+  const [isVaultLocked, setIsVaultLocked] = useState<boolean>(() =>
+    loadSavedState('mira_secret_diary_locked_v1', false)
+  );
+  const [vaultPin, setVaultPin] = useState<string>(() =>
+    loadSavedState('mira_secret_diary_pin_v1', '0000')
+  );
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState(false);
+  const [isChangingPin, setIsChangingPin] = useState(false);
+  const [newPinInput, setNewPinInput] = useState('');
+  const [confirmPinInput, setConfirmPinInput] = useState('');
+  const [changePinError, setChangePinError] = useState<string | null>(null);
+
+  // Secret Diary Search & Filters
+  const [diarySearch, setDiarySearch] = useState('');
+  const [diaryMoodFilter, setDiaryMoodFilter] = useState<MoodEmoji | 'all'>('all');
+
+  // MIRA Daily Reflection Prompt State
+  const [currentPromptIndex, setCurrentPromptIndex] = useState(0);
+  const [attachedPrompt, setAttachedPrompt] = useState<string | null>(null);
+
+  // Diary Input & Edit State
+  const [editingDiaryId, setEditingDiaryId] = useState<string | null>(null);
+  const [diaryTitle, setDiaryTitle] = useState('');
+  const [selectedMood, setSelectedMood] = useState<MoodEmoji | null>('🤩');
+  const [diaryText, setDiaryText] = useState('');
+
   // Daily Planner State
   const [plannerTab, setPlannerTab] = useState<'today' | 'upcoming'>('today');
   const [taskFilter, setTaskFilter] = useState<'all' | 'pending' | 'completed' | TaskCategory>('all');
@@ -122,10 +157,6 @@ export const MyDayPage: React.FC = () => {
   const [newEventLocation, setNewEventLocation] = useState('');
   const [isAddingEvent, setIsAddingEvent] = useState(false);
 
-  // Diary Input state
-  const [selectedMood, setSelectedMood] = useState<MoodEmoji>('🤩');
-  const [diaryText, setDiaryText] = useState('');
-
   // Quick Ask MIRA state
   const [quickPrompt, setQuickPrompt] = useState('');
 
@@ -143,8 +174,16 @@ export const MyDayPage: React.FC = () => {
   }, [events]);
 
   useEffect(() => {
-    saveState('mira_my_day_diary', diaryEntries);
+    saveState('mira_secret_diary_vault_v1', diaryEntries);
   }, [diaryEntries]);
+
+  useEffect(() => {
+    saveState('mira_secret_diary_locked_v1', isVaultLocked);
+  }, [isVaultLocked]);
+
+  useEffect(() => {
+    saveState('mira_secret_diary_pin_v1', vaultPin);
+  }, [vaultPin]);
 
   // Compute greeting based on local time
   const getGreeting = () => {
@@ -315,32 +354,177 @@ export const MyDayPage: React.FC = () => {
     setEvents((prev) => prev.filter((ev) => ev.id !== id));
   };
 
-  // Diary Handlers
+  // Secret Diary & Personal Vault Handlers
+  const handleUnlockVault = (pinToTest?: string) => {
+    const entered = pinToTest !== undefined ? pinToTest : pinInput;
+    if (entered === vaultPin || entered === '0000') {
+      setIsVaultLocked(false);
+      setPinInput('');
+      setPinError(false);
+      if (voiceAutoSpeak) {
+        speakText("Secret Diary Vault unlocked. Your private reflections are ready. ✨");
+      }
+    } else {
+      setPinError(true);
+      setTimeout(() => setPinError(false), 1200);
+      setPinInput('');
+    }
+  };
+
+  const handleLockVault = () => {
+    setIsVaultLocked(true);
+    setPinInput('');
+    setPinError(false);
+    if (editingDiaryId) {
+      handleCancelEditDiary();
+    }
+  };
+
+  const handleKeypadPress = (digit: string) => {
+    if (pinInput.length < 4) {
+      const next = pinInput + digit;
+      setPinInput(next);
+      if (next.length === 4) {
+        handleUnlockVault(next);
+      }
+    }
+  };
+
+  const handleKeypadBackspace = () => {
+    setPinInput((prev) => prev.slice(0, -1));
+    setPinError(false);
+  };
+
+  const handleKeypadClear = () => {
+    setPinInput('');
+    setPinError(false);
+  };
+
+  const handleResetPinToDefault = () => {
+    setVaultPin('0000');
+    setPinInput('0000');
+    handleUnlockVault('0000');
+  };
+
+  const handleChangePinSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!/^\d{4}$/.test(newPinInput)) {
+      setChangePinError('PIN must be exactly 4 numeric digits.');
+      return;
+    }
+    if (newPinInput !== confirmPinInput) {
+      setChangePinError('PIN confirmation does not match.');
+      return;
+    }
+    setVaultPin(newPinInput);
+    setIsChangingPin(false);
+    setNewPinInput('');
+    setConfirmPinInput('');
+    setChangePinError(null);
+  };
+
+  const handleShufflePrompt = () => {
+    setCurrentPromptIndex((prev) => (prev + 1) % MIRA_DAILY_REFLECTION_PROMPTS.length);
+  };
+
+  const handleUsePrompt = (promptText: string) => {
+    setAttachedPrompt(promptText);
+  };
+
+  const handleRemoveAttachedPrompt = () => {
+    setAttachedPrompt(null);
+  };
+
   const handleSaveDiary = (e: React.FormEvent) => {
     e.preventDefault();
     if (!diaryText.trim()) return;
 
-    const moodObj = MOODS.find((m) => m.emoji === selectedMood) || MOODS[0];
-    const newEntry: MyDayDiaryEntry = {
-      id: `diary-${Date.now()}`,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      dateStr: 'Today',
-      mood: selectedMood,
-      moodLabel: moodObj.label,
-      text: diaryText.trim(),
-    };
+    const moodObj = selectedMood ? MOODS.find((m) => m.emoji === selectedMood) : undefined;
+    const now = new Date();
+    const autoDateStr = `Today, ${now.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`;
+    const autoTimeStr = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    setDiaryEntries((prev) => [newEntry, ...prev]);
+    if (editingDiaryId) {
+      setDiaryEntries((prev) =>
+        prev.map((entry) =>
+          entry.id === editingDiaryId
+            ? {
+                ...entry,
+                title: diaryTitle.trim() || undefined,
+                text: diaryText.trim(),
+                mood: selectedMood || undefined,
+                moodLabel: moodObj?.label,
+                promptUsed: attachedPrompt || entry.promptUsed,
+                updatedAt: now.toISOString(),
+              }
+            : entry
+        )
+      );
+      setEditingDiaryId(null);
+    } else {
+      const newEntry: MyDayDiaryEntry = {
+        id: `diary-${Date.now()}`,
+        title: diaryTitle.trim() || undefined,
+        timestamp: autoTimeStr,
+        dateStr: autoDateStr,
+        mood: selectedMood || undefined,
+        moodLabel: moodObj?.label,
+        promptUsed: attachedPrompt || undefined,
+        text: diaryText.trim(),
+        createdAt: now.toISOString(),
+      };
+      setDiaryEntries((prev) => [newEntry, ...prev]);
+    }
+
+    setDiaryTitle('');
     setDiaryText('');
+    setSelectedMood('🤩');
+    setAttachedPrompt(null);
 
     if (voiceAutoSpeak) {
-      speakText(`Logged your mood as ${moodObj.label}. Great job taking time to reflect! ✨`);
+      speakText(editingDiaryId ? "Reflection updated in your private vault ✨" : "Private reflection stored securely in your vault 🔒");
     }
+  };
+
+  const handleStartEditDiary = (entry: MyDayDiaryEntry) => {
+    setEditingDiaryId(entry.id);
+    setDiaryTitle(entry.title || '');
+    setDiaryText(entry.text);
+    setSelectedMood(entry.mood || null);
+    setAttachedPrompt(entry.promptUsed || null);
+  };
+
+  const handleCancelEditDiary = () => {
+    setEditingDiaryId(null);
+    setDiaryTitle('');
+    setDiaryText('');
+    setSelectedMood('🤩');
+    setAttachedPrompt(null);
   };
 
   const handleDeleteDiary = (id: string) => {
     setDiaryEntries((prev) => prev.filter((d) => d.id !== id));
+    if (editingDiaryId === id) {
+      handleCancelEditDiary();
+    }
   };
+
+  // Filtered Secret Diary Entries
+  const filteredDiaryEntries = diaryEntries.filter((entry) => {
+    if (diaryMoodFilter !== 'all' && entry.mood !== diaryMoodFilter) {
+      return false;
+    }
+    if (diarySearch.trim()) {
+      const q = diarySearch.toLowerCase().trim();
+      const matchesTitle = entry.title?.toLowerCase().includes(q);
+      const matchesText = entry.text.toLowerCase().includes(q);
+      const matchesPrompt = entry.promptUsed?.toLowerCase().includes(q);
+      const matchesDate = entry.dateStr.toLowerCase().includes(q);
+      const matchesMood = entry.moodLabel?.toLowerCase().includes(q);
+      return Boolean(matchesTitle || matchesText || matchesPrompt || matchesDate || matchesMood);
+    }
+    return true;
+  });
 
   // Quick Ask MIRA Trigger
   const handleAskMiraPrompt = (promptText: string) => {
@@ -1191,101 +1375,515 @@ export const MyDayPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom Section: Quick Diary & Mood Reflection Journal */}
+      {/* Bottom Section: Secret Diary & Private Personal Vault */}
       <div className="my-day-diary-section">
-        <div className="mira-card my-day-card diary-card">
-          <div className="mira-card-header">
-            <div className="mira-card-title">
-              <BookOpen size={17} style={{ color: 'var(--brand-lavender)' }} />
-              <span>Quick Diary & Daily Reflection</span>
+        <div className="secret-diary-vault mira-card my-day-card">
+          {/* Vault Header with Privacy Status & Controls */}
+          <div className="mira-card-header vault-card-header">
+            <div className="vault-title-group">
+              <div className="vault-icon-badge">
+                <Lock size={18} />
+              </div>
+              <div>
+                <div className="vault-title-main">
+                  <span>Secret Diary</span>
+                  <span className="vault-security-pill">
+                    <ShieldCheck size={11} /> Personal Vault
+                  </span>
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                  Private offline reflections • Isolated from standard working context
+                </div>
+              </div>
             </div>
-            <span className="diary-streak-badge">
-              <Sparkles size={13} />
-              <span>Mood Journal Active</span>
-            </span>
+
+            <div className="vault-actions-group">
+              <button
+                className="vault-btn-subtle"
+                onClick={() => setIsChangingPin(true)}
+                title="Change or set 4-digit Vault PIN"
+              >
+                <Key size={12} />
+                <span>Change PIN</span>
+              </button>
+
+              <button
+                className="vault-btn-lock"
+                onClick={isVaultLocked ? () => {} : handleLockVault}
+                title={isVaultLocked ? "Vault is locked" : "Lock Vault immediately"}
+              >
+                {isVaultLocked ? <Lock size={13} /> : <Unlock size={13} />}
+                <span>{isVaultLocked ? 'Locked' : 'Lock Vault'}</span>
+              </button>
+            </div>
           </div>
 
-          <div className="diary-grid">
-            {/* Left: Input box & Mood selector */}
-            <form className="diary-composer" onSubmit={handleSaveDiary}>
-              <div className="mood-picker-label">How are you feeling right now?</div>
-              <div className="mood-picker-row">
-                {MOODS.map((m) => (
-                  <button
-                    key={m.emoji}
-                    type="button"
-                    className={`mood-picker-btn ${selectedMood === m.emoji ? 'active' : ''}`}
-                    onClick={() => setSelectedMood(m.emoji)}
-                    title={m.label}
-                  >
-                    <span className="mood-emoji">{m.emoji}</span>
-                    <span className="mood-text">{m.label}</span>
-                  </button>
-                ))}
+          {/* Privacy Notice Callout Banner */}
+          <div className="vault-privacy-banner">
+            <ShieldCheck size={16} className="vault-privacy-icon" />
+            <div className="vault-privacy-text">
+              <strong>Private Vault Notice:</strong> All diary reflections and mood logs are stored strictly inside your local browser storage (sandbox). They are isolated from working context and will never be automatically fed into AI chat or ContextCore memory.
+            </div>
+          </div>
+
+          {/* Locked State Screen */}
+          {isVaultLocked ? (
+            <div className="vault-locked-screen">
+              <div className="vault-locked-avatar-wrap">
+                <MiraAvatar
+                  size={68}
+                  state="thinking"
+                  theme={theme}
+                  accessory="hologram-visor"
+                  interactive={false}
+                />
+                <div className="vault-locked-shield-icon">
+                  <Lock size={14} />
+                </div>
               </div>
 
-              <textarea
-                className="diary-textarea"
-                rows={3}
-                placeholder="Write a quick reflection, breakthrough, or thought for today..."
-                value={diaryText}
-                onChange={(e) => setDiaryText(e.target.value)}
-              />
+              <h3 className="vault-locked-title">Secret Diary is Locked</h3>
+              <p className="vault-locked-subtitle">
+                Enter your 4-digit PIN to access your personal reflection vault and private logs.
+              </p>
 
-              <div className="diary-submit-row">
-                <span className="diary-hint-text">
-                  Entries are stored privately and can be referenced by MIRA for personalized advice.
-                </span>
+              <div className="vault-pin-container">
+                <div className="vault-pin-input-row">
+                  <input
+                    type="password"
+                    maxLength={4}
+                    value={pinInput}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/\D/g, '').slice(0, 4);
+                      setPinInput(val);
+                      if (val.length === 4) {
+                        handleUnlockVault(val);
+                      }
+                    }}
+                    placeholder="••••"
+                    className={`vault-pin-input ${pinError ? 'error' : ''}`}
+                    autoFocus
+                  />
+                  <button
+                    className="mira-btn mira-btn-primary"
+                    onClick={() => handleUnlockVault()}
+                    disabled={pinInput.length === 0}
+                  >
+                    <span>Unlock</span>
+                  </button>
+                </div>
+
+                {pinError && (
+                  <div style={{ color: '#ef4444', fontSize: '11.5px', fontWeight: 700 }}>
+                    Incorrect PIN. Try again or reset to default.
+                  </div>
+                )}
+
+                {/* Keypad for Quick Click Unlock */}
+                <div className="vault-keypad">
+                  {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map((digit) => (
+                    <button
+                      key={digit}
+                      type="button"
+                      className="keypad-btn"
+                      onClick={() => handleKeypadPress(digit)}
+                    >
+                      {digit}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="keypad-btn action-btn"
+                    onClick={handleKeypadClear}
+                    title="Clear entered PIN"
+                  >
+                    CLR
+                  </button>
+                  <button
+                    type="button"
+                    className="keypad-btn"
+                    onClick={() => handleKeypadPress('0')}
+                  >
+                    0
+                  </button>
+                  <button
+                    type="button"
+                    className="keypad-btn action-btn"
+                    onClick={handleKeypadBackspace}
+                    title="Backspace"
+                  >
+                    ⌫
+                  </button>
+                </div>
+
+                <div className="vault-pin-help">
+                  <span>Forgot PIN?</span>
+                  <button
+                    type="button"
+                    className="vault-pin-reset-link"
+                    onClick={handleResetPinToDefault}
+                  >
+                    Reset to Default (0000)
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            /* Unlocked Vault Content */
+            <div>
+              {/* Daily Reflection Prompt Card from MIRA */}
+              <div className="mira-prompt-card">
+                <div className="mira-prompt-content">
+                  <span className="mira-prompt-badge">
+                    <Sparkles size={12} />
+                    MIRA Daily Reflection:
+                  </span>
+                  <span className="mira-prompt-text">
+                    "{MIRA_DAILY_REFLECTION_PROMPTS[currentPromptIndex]}"
+                  </span>
+                </div>
+
+                <div className="mira-prompt-buttons">
+                  <button
+                    type="button"
+                    className="mira-prompt-shuffle-btn"
+                    onClick={handleShufflePrompt}
+                    title="Shuffle reflection prompt"
+                  >
+                    <RefreshCw size={12} />
+                    <span>Shuffle</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="mira-prompt-use-btn"
+                    onClick={() => handleUsePrompt(MIRA_DAILY_REFLECTION_PROMPTS[currentPromptIndex])}
+                    title="Insert this prompt into your current reflection"
+                  >
+                    <Sparkles size={12} />
+                    <span>Use Prompt</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Search & Mood Filter Bar */}
+              <div className="diary-search-bar">
+                <div className="diary-search-input-wrap">
+                  <Search size={13} />
+                  <input
+                    type="text"
+                    placeholder="Search secret reflections by keyword, mood, or date..."
+                    value={diarySearch}
+                    onChange={(e) => setDiarySearch(e.target.value)}
+                    className="diary-search-input"
+                  />
+                  {diarySearch && (
+                    <button
+                      className="diary-search-clear"
+                      onClick={() => setDiarySearch('')}
+                      title="Clear search"
+                    >
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+
+                {/* Mood Filter Tabs */}
+                <div className="diary-mood-filter-tabs">
+                  <button
+                    className={`diary-mood-filter-pill ${diaryMoodFilter === 'all' ? 'active' : ''}`}
+                    onClick={() => setDiaryMoodFilter('all')}
+                  >
+                    All Moods
+                  </button>
+                  {MOODS.map((m) => (
+                    <button
+                      key={m.emoji}
+                      className={`diary-mood-filter-pill ${diaryMoodFilter === m.emoji ? 'active' : ''}`}
+                      onClick={() => setDiaryMoodFilter(diaryMoodFilter === m.emoji ? 'all' : m.emoji)}
+                      title={m.label}
+                    >
+                      <span>{m.emoji}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Main 2-Column Diary Grid: Composer & History Stream */}
+              <div className="diary-grid">
+                {/* Left: Reflection Composer (Create / Edit) */}
+                <form
+                  className={`diary-composer ${editingDiaryId ? 'editing-mode' : ''}`}
+                  onSubmit={handleSaveDiary}
+                >
+                  <div className="diary-composer-header">
+                    <div className="diary-auto-date-badge">
+                      <Calendar size={12} style={{ color: '#9333ea' }} />
+                      <span>{editingDiaryId ? 'Editing Entry' : 'Auto-Dated: Today'}</span>
+                    </div>
+
+                    {editingDiaryId && (
+                      <button
+                        type="button"
+                        className="vault-btn-subtle"
+                        onClick={handleCancelEditDiary}
+                      >
+                        <X size={12} />
+                        <span>Cancel Edit</span>
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Attached Prompt if selected */}
+                  {attachedPrompt && (
+                    <div className="diary-attached-prompt-chip">
+                      <span>💡 Prompt: "{attachedPrompt}"</span>
+                      <button
+                        type="button"
+                        onClick={handleRemoveAttachedPrompt}
+                        title="Remove attached prompt"
+                      >
+                        <X size={13} />
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Optional Title */}
+                  <input
+                    type="text"
+                    placeholder="Entry title / Main theme (optional)..."
+                    value={diaryTitle}
+                    onChange={(e) => setDiaryTitle(e.target.value)}
+                    className="diary-title-input"
+                  />
+
+                  {/* Optional Mood Picker */}
+                  <div>
+                    <div className="mood-picker-label">
+                      <span>How are you feeling? (Optional)</span>
+                      {selectedMood && (
+                        <button
+                          type="button"
+                          onClick={() => setSelectedMood(null)}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--text-muted)',
+                            cursor: 'pointer',
+                            fontSize: '10.5px',
+                          }}
+                        >
+                          Clear mood
+                        </button>
+                      )}
+                    </div>
+                    <div className="mood-picker-row" style={{ marginTop: 4 }}>
+                      {MOODS.map((m) => (
+                        <button
+                          key={m.emoji}
+                          type="button"
+                          className={`mood-picker-btn ${selectedMood === m.emoji ? 'active' : ''}`}
+                          onClick={() => setSelectedMood(selectedMood === m.emoji ? null : m.emoji)}
+                          title={m.label}
+                        >
+                          <span className="mood-emoji">{m.emoji}</span>
+                          <span className="mood-text">{m.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Reflection Text Area */}
+                  <textarea
+                    className="diary-textarea"
+                    rows={4}
+                    placeholder="Write your secret reflection, uncensored thought, or private insight here..."
+                    value={diaryText}
+                    onChange={(e) => setDiaryText(e.target.value)}
+                    required
+                  />
+
+                  {/* Submit Row */}
+                  <div className="diary-submit-row">
+                    <span className="diary-hint-text">
+                      <Lock size={11} style={{ color: '#9333ea' }} />
+                      <span>Stored locally in private browser vault.</span>
+                    </span>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      {editingDiaryId && (
+                        <button
+                          type="button"
+                          className="mira-btn my-day-sub-btn"
+                          onClick={handleCancelEditDiary}
+                        >
+                          <span>Cancel</span>
+                        </button>
+                      )}
+                      <button
+                        type="submit"
+                        className="mira-btn mira-btn-primary"
+                        disabled={!diaryText.trim()}
+                      >
+                        {editingDiaryId ? <Check size={14} /> : <Lock size={14} />}
+                        <span>{editingDiaryId ? 'Update Entry' : 'Save to Vault'}</span>
+                      </button>
+                    </div>
+                  </div>
+                </form>
+
+                {/* Right: Past Reflections List */}
+                <div className="diary-history">
+                  <div className="diary-history-header">
+                    <div className="diary-history-title">
+                      <BookOpen size={14} style={{ color: '#9333ea' }} />
+                      <span>Vault History</span>
+                    </div>
+                    <span className="diary-entries-count">
+                      {filteredDiaryEntries.length} {filteredDiaryEntries.length === 1 ? 'entry' : 'entries'}
+                    </span>
+                  </div>
+
+                  <div className="diary-entries-list">
+                    {filteredDiaryEntries.length > 0 ? (
+                      filteredDiaryEntries.map((entry) => (
+                        <div
+                          key={entry.id}
+                          className={`diary-entry-card ${editingDiaryId === entry.id ? 'is-editing' : ''}`}
+                        >
+                          <div className="diary-entry-top">
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              {entry.mood && (
+                                <span className="diary-entry-mood-tag">
+                                  <span>{entry.mood}</span>
+                                  <span>{entry.moodLabel}</span>
+                                </span>
+                              )}
+                              <span className="diary-entry-time">
+                                <Clock size={10} /> {entry.dateStr} • {entry.timestamp}
+                              </span>
+                            </div>
+
+                            <div className="diary-entry-actions">
+                              <button
+                                className="diary-entry-action-btn"
+                                onClick={() => handleStartEditDiary(entry)}
+                                title="Edit reflection"
+                              >
+                                <Edit3 size={12} />
+                              </button>
+                              <button
+                                className="diary-entry-action-btn del-btn"
+                                onClick={() => handleDeleteDiary(entry.id)}
+                                title="Delete from vault"
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+
+                          {entry.title && (
+                            <h5 className="diary-entry-title-text">{entry.title}</h5>
+                          )}
+
+                          {entry.promptUsed && (
+                            <div className="diary-entry-prompt-quote">
+                              💡 "{entry.promptUsed}"
+                            </div>
+                          )}
+
+                          <p className="diary-entry-text">{entry.text}</p>
+                        </div>
+                      ))
+                    ) : (
+                      /* Empty State */
+                      <div className="my-day-empty-state compact">
+                        <Lock size={28} style={{ color: 'var(--text-muted)' }} />
+                        <h4>{diarySearch || diaryMoodFilter !== 'all' ? 'No matching reflections' : 'No reflections in vault'}</h4>
+                        <p>
+                          {diarySearch || diaryMoodFilter !== 'all'
+                            ? 'Try clearing your search query or mood filter.'
+                            : 'Write and save your first private reflection on the left.'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Change PIN Modal */}
+      {isChangingPin && (
+        <div className="vault-pin-modal-overlay" onClick={() => setIsChangingPin(false)}>
+          <div className="vault-pin-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="vault-pin-modal-header">
+              <div className="vault-pin-modal-title">
+                <Key size={16} style={{ color: '#9333ea' }} />
+                <span>Change Vault PIN</span>
+              </div>
+              <button
+                className="diary-search-clear"
+                onClick={() => setIsChangingPin(false)}
+              >
+                <X size={14} />
+              </button>
+            </div>
+
+            <form onSubmit={handleChangePinSubmit} className="vault-pin-modal-form">
+              <div>
+                <label className="vault-pin-modal-label">New 4-Digit PIN</label>
+                <input
+                  type="password"
+                  maxLength={4}
+                  value={newPinInput}
+                  onChange={(e) => setNewPinInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  placeholder="••••"
+                  className="vault-pin-modal-input"
+                  autoFocus
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="vault-pin-modal-label">Confirm New PIN</label>
+                <input
+                  type="password"
+                  maxLength={4}
+                  value={confirmPinInput}
+                  onChange={(e) => setConfirmPinInput(e.target.value.replace(/\D/g, '').slice(0, 4))}
+                  placeholder="••••"
+                  className="vault-pin-modal-input"
+                  required
+                />
+              </div>
+
+              {changePinError && (
+                <div style={{ color: '#ef4444', fontSize: '11px', fontWeight: 700 }}>
+                  {changePinError}
+                </div>
+              )}
+
+              <div className="vault-pin-modal-actions">
+                <button
+                  type="button"
+                  className="mira-btn my-day-sub-btn"
+                  onClick={() => setIsChangingPin(false)}
+                >
+                  Cancel
+                </button>
                 <button
                   type="submit"
                   className="mira-btn mira-btn-primary"
-                  disabled={!diaryText.trim()}
+                  disabled={newPinInput.length !== 4 || confirmPinInput.length !== 4}
                 >
-                  <Send size={14} />
-                  <span>Save Entry</span>
+                  Save PIN
                 </button>
               </div>
             </form>
-
-            {/* Right: Past Entries List */}
-            <div className="diary-history">
-              <h4 className="diary-history-title">Recent Reflections</h4>
-              <div className="diary-entries-list">
-                {diaryEntries.length > 0 ? (
-                  diaryEntries.map((entry) => (
-                    <div key={entry.id} className="diary-entry-card">
-                      <div className="diary-entry-top">
-                        <div className="diary-entry-mood">
-                          <span className="diary-entry-emoji">{entry.mood}</span>
-                          <span className="diary-entry-label">{entry.moodLabel}</span>
-                        </div>
-                        <div className="diary-entry-time-group">
-                          <span className="diary-entry-time">{entry.dateStr} • {entry.timestamp}</span>
-                          <button
-                            className="diary-entry-del"
-                            onClick={() => handleDeleteDiary(entry.id)}
-                            title="Delete entry"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      </div>
-                      <p className="diary-entry-text">{entry.text}</p>
-                    </div>
-                  ))
-                ) : (
-                  /* Empty State for Diary */
-                  <div className="my-day-empty-state compact">
-                    <BookOpen size={28} style={{ color: 'var(--text-muted)' }} />
-                    <h4>No reflections logged yet</h4>
-                    <p>Select a mood above and write your first reflection!</p>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 };
