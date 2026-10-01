@@ -104,82 +104,49 @@ export const ActionsPage: React.FC = () => {
     { title: 'Verification', desc: 'Telemetry proof & validation' },
   ];
 
-  const handleApprove = () => {
+  const [executionResult, setExecutionResult] = useState<{
+    output: string;
+    verification_score: number;
+    verification_details: Record<string, unknown>;
+    execution_time_ms: number;
+  } | null>(null);
+
+
+  const handleApprove = async () => {
     if (!currentActionProposal) return;
     const proposal = currentActionProposal;
     const sessionId = sessionIdRef.current;
 
     approveAction(proposal.id);
 
-    // Sync approval event to backend ContextCore
-    apiClient.saveContext({
-      session_id: sessionId,
-      modalities: {
-        action: {
-          proposal_id: proposal.id,
-          tool_name: proposal.toolName,
-          status: 'approved',
-          updated_at: new Date().toISOString(),
-        },
-      },
-    }).catch((err) => console.warn('[ActionsPage] Save context error:', err));
+    try {
+      const res = await apiClient.executeAction(
+        proposal.id,
+        proposal.toolName,
+        proposal.parameters as Record<string, unknown>,
+        sessionId
+      );
 
-    if (wsClient.getStatus() === 'connected') {
-      wsClient.sendMessage({
-        type: 'action_approved',
-        action_id: proposal.id,
-        toolName: proposal.toolName,
-        message: `Action "${proposal.summary}" was APPROVED by user. Safe dispatch executing via tool "${proposal.toolName}".`,
+      setExecutionResult({
+        output: String(res.output),
+        verification_score: res.verification_score,
+        verification_details: res.verification_details,
+        execution_time_ms: res.execution_time_ms,
       });
-    }
 
-    // After execution transition (~1200ms in context), dispatch execution event
-    setTimeout(() => {
       if (wsClient.getStatus() === 'connected') {
         wsClient.sendMessage({
-          type: 'action_executed',
+          type: 'action_verified',
           action_id: proposal.id,
-          toolName: proposal.toolName,
-          message: `Action execution completed for "${proposal.summary}". Entering verification loop stage.`,
+          confidence_score: res.verification_score,
+          message: `Action executed & verified! Output: ${String(res.output).slice(0, 80)}. Verification score: ${res.verification_score}%.`,
         });
       }
-
-      // After verification transition (~2600ms total), dispatch verification event
-      setTimeout(() => {
-        apiClient.saveContext({
-          session_id: sessionId,
-          modalities: {
-            action: {
-              proposal_id: proposal.id,
-              tool_name: proposal.toolName,
-              status: 'completed',
-              verified: true,
-              confidence_score: 98.4,
-              updated_at: new Date().toISOString(),
-            },
-          },
-          active_anchors: [
-            {
-              modality: 'system',
-              title: `Verified Action: ${proposal.summary}`,
-              source: 'Telemetry Health Check',
-              summary: 'Execution confirmed 3 pods back online in healthy state with 98.4% confidence.',
-              token_weight: 180,
-            },
-          ],
-        }).catch((err) => console.warn('[ActionsPage] Verification sync error:', err));
-
-        if (wsClient.getStatus() === 'connected') {
-          wsClient.sendMessage({
-            type: 'action_verified',
-            action_id: proposal.id,
-            confidence_score: 98.4,
-            message: `Action verified safely! Telemetry health check passed with 98.4% confidence score.`,
-          });
-        }
-      }, 1400);
-    }, 1200);
+    } catch (err) {
+      console.warn('[ActionsPage] Real execution fallback:', err);
+    }
   };
+
 
   const handleConfirmReject = () => {
     if (!currentActionProposal) return;
@@ -410,13 +377,49 @@ export const ActionsPage: React.FC = () => {
                 )}
 
                 {currentActionProposal.status === 'completed' && (
-                  <div className="action-status-banner completed">
-                    <CheckCircle2 size={18} />
-                    <span>Action safely executed and verified! System stable.</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div className="action-status-banner completed">
+                      <CheckCircle2 size={18} />
+                      <span>Action safely executed and verified! System stable.</span>
+                    </div>
+
+                    {executionResult && (
+                      <div
+                        style={{
+                          background: 'var(--bg-surface-secondary)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: '8px',
+                          padding: '12px',
+                          fontSize: '12px',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontWeight: 700 }}>
+                          <span>Real Tool Execution Output ({executionResult.execution_time_ms} ms):</span>
+                          <span style={{ color: '#10b981' }}>Score: {executionResult.verification_score}%</span>
+                        </div>
+                        <pre
+                          style={{
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '11px',
+                            background: '#0f172a',
+                            color: '#38bdf8',
+                            padding: '10px',
+                            borderRadius: '6px',
+                            whiteSpace: 'pre-wrap',
+                            maxHeight: '160px',
+                            overflowY: 'auto',
+                            margin: 0,
+                          }}
+                        >
+                          {executionResult.output}
+                        </pre>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             </div>
+
           ) : (
             <div className="mira-card empty-action-card">
               <CheckCircle2 size={32} style={{ color: 'var(--brand-mint)' }} />

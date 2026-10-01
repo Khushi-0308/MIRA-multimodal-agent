@@ -8,6 +8,7 @@ import { LoopStage } from '../types/agent';
 import {
   Sparkles,
   Volume2,
+  VolumeX,
   Mic,
   MicOff,
   Sliders,
@@ -63,6 +64,11 @@ export const ChatPage: React.FC = () => {
     mascotAccessory,
     audioStream,
     toggleListening,
+    speakText,
+    stopSpeaking,
+    voiceAutoSpeak,
+    setVoiceAutoSpeak,
+    speechTranscript,
     loopStage,
     setLoopStage,
     addDocument,
@@ -98,9 +104,19 @@ export const ChatPage: React.FC = () => {
     }
   }, [chatMessages, agentState]);
 
+  // Synchronize live voice transcription to input field
+  useEffect(() => {
+    if (audioStream.isListening && speechTranscript) {
+      setInputText(speechTranscript);
+    }
+  }, [speechTranscript, audioStream.isListening]);
+
   const handleSendMessage = async (textToSend: string) => {
     const trimmed = textToSend.trim();
     if (!trimmed && attachedFiles.length === 0) return;
+
+    // Stop speaking any previous audio when user sends a new message
+    stopSpeaking();
 
     const userMsg: MultimodalMessage = {
       id: `msg-${Date.now()}`,
@@ -157,9 +173,15 @@ export const ChatPage: React.FC = () => {
       };
 
       setChatMessages((prev) => [...prev, miraReply]);
-      setTimeout(() => {
-        setAgentState('idle');
-      }, 1500);
+
+      // Speak response aloud with MIRA voice if auto-speak is enabled
+      if (voiceAutoSpeak && !audioStream.isMuted) {
+        speakText(replyText);
+      } else {
+        setTimeout(() => {
+          setAgentState('idle');
+        }, 1500);
+      }
     } catch (err) {
       console.error('[ChatPage] Backend call error:', err);
       setAgentState('error');
@@ -229,6 +251,33 @@ export const ChatPage: React.FC = () => {
         </div>
 
         <div className="chat-header-actions">
+          {audioStream.isSpeakingTTS && (
+            <button
+              className="mira-btn mira-btn-sm mira-btn-danger"
+              onClick={stopSpeaking}
+              title="Stop speaking"
+            >
+              <VolumeX size={14} />
+              <span>Stop Audio</span>
+            </button>
+          )}
+
+          <button
+            className={`mira-btn mira-btn-sm ${voiceAutoSpeak && !audioStream.isMuted ? 'mira-btn-secondary active' : 'mira-btn-secondary'}`}
+            onClick={() => {
+              if (voiceAutoSpeak) {
+                setVoiceAutoSpeak(false);
+                stopSpeaking();
+              } else {
+                setVoiceAutoSpeak(true);
+              }
+            }}
+            title={voiceAutoSpeak ? 'Voice response enabled (Click to mute)' : 'Voice response disabled (Click to enable)'}
+          >
+            {voiceAutoSpeak && !audioStream.isMuted ? <Volume2 size={14} /> : <VolumeX size={14} />}
+            <span>{voiceAutoSpeak && !audioStream.isMuted ? 'Voice Reply On' : 'Voice Reply Muted'}</span>
+          </button>
+
           <button
             className={`mira-btn mira-btn-sm ${audioStream.isListening ? 'mira-btn-primary' : ''}`}
             onClick={toggleListening}
@@ -271,6 +320,52 @@ export const ChatPage: React.FC = () => {
       <div className="chat-dual-grid">
         {/* Left Pane: Conversation Viewport + Active Perception + Composer */}
         <div className="chat-left-pane">
+          {/* Live Voice Audio Waveform Banner when listening or speaking */}
+          {(audioStream.isListening || audioStream.isSpeakingTTS) && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 14px',
+                background: audioStream.isListening ? 'rgba(244, 63, 94, 0.09)' : 'rgba(168, 85, 247, 0.09)',
+                borderBottom: '1px solid var(--border-subtle)',
+                fontSize: '12px',
+                gap: 12,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 700 }}>
+                {audioStream.isListening ? (
+                  <>
+                    <Mic size={14} style={{ color: 'var(--brand-primary)', animation: 'pulse 1s infinite' }} />
+                    <span style={{ color: 'var(--brand-primary)' }}>MIRA Listening Live — Speak now...</span>
+                  </>
+                ) : (
+                  <>
+                    <Volume2 size={14} style={{ color: 'var(--brand-lavender)', animation: 'pulse 1s infinite' }} />
+                    <span style={{ color: 'var(--brand-lavender)' }}>MIRA Speaking Out Aloud...</span>
+                  </>
+                )}
+              </div>
+
+              {/* Real-time Frequency Spectrum Bars */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 2, height: 16 }}>
+                {audioStream.audioFrequencies.slice(0, 16).map((freq, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      width: 3,
+                      height: `${Math.max(3, Math.round(freq * 16))}px`,
+                      backgroundColor: audioStream.isListening ? 'var(--brand-primary)' : 'var(--brand-lavender)',
+                      borderRadius: 2,
+                      transition: 'height 80ms ease',
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="chat-messages-viewport" ref={scrollRef}>
             {chatMessages.map((msg) => (
               <MessageItem key={msg.id} message={msg} />

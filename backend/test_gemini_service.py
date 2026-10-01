@@ -49,7 +49,7 @@ def run_tests():
     result = generate_response("Hello MIRA!", client=mock_client)
     assert result == "Hello! I am MIRA powered by Gemini."
     mock_client.models.generate_content.assert_called_once_with(
-        model="gemini-2.5-flash",
+        model="gemini-3.5-flash-lite",
         contents="Hello MIRA!",
     )
     print("[PASS] Test 3: generate_response() successfully invokes Gemini API and returns .text")

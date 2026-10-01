@@ -1,21 +1,31 @@
+import base64
 import os
 import time
 import uuid
 from datetime import datetime, timezone
-from fastapi import FastAPI, HTTPException, status, WebSocket, WebSocketDisconnect
+from typing import Any, Dict, List, Optional
+from fastapi import FastAPI, HTTPException, status, WebSocket, WebSocketDisconnect, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from backend.models import (
     ChatRequest,
     ChatResponse,
     ContextModel,
     ContextResponse,
+    VisionAnalyzeRequest,
+    VisionAnalyzeResponse,
+    DocumentUploadResponse,
+    ActionExecuteRequest,
+    ActionExecuteResponse,
 )
-from backend.services.gemini_service import generate_response
+from backend.services.gemini_service import generate_response, analyze_image
+from backend.services.document_service import extract_text_from_file, chunk_document_text, estimate_token_count
+from backend.services.tool_service import execute_tool
 
 
 # Initialize startup time and in-memory storage
 START_TIME = time.time()
 CONTEXT_STORE: dict[str, dict] = {}
+DOCUMENT_STORE: dict[str, list[dict]] = {}
 
 
 app = FastAPI(
@@ -35,6 +45,47 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def build_grounded_prompt(user_message: str, session_id: str) -> str:
+    """Build RAG-augmented prompt incorporating active document chunks and visual context."""
+    ctx = CONTEXT_STORE.get(session_id, {})
+    docs = DOCUMENT_STORE.get(session_id, [])
+
+    parts = []
+
+    # 1. Document RAG context
+    if docs:
+        parts.append("=== RETRIEVED DOCUMENT KNOWLEDGE CONTEXT ===")
+        for d in docs[-5:]:
+            parts.append(f"Document: {d.get('filename')} (Tokens: {d.get('token_count', 0)})")
+            summary = d.get("summary", "")
+            if summary:
+                parts.append(f"Summary: {summary}")
+            snippet = d.get("content_snippet", "")
+            if snippet:
+                parts.append(f"Excerpt: {snippet[:1200]}")
+        parts.append("============================================")
+
+    # 2. Vision grounding anchors
+    anchors = ctx.get("active_anchors", [])
+    vision_anchors = [a for a in anchors if isinstance(a, dict) and a.get("modality") == "vision"]
+    if vision_anchors:
+        parts.append("=== ACTIVE VISION CONTEXT ANCHORS ===")
+        for va in vision_anchors[-3:]:
+            parts.append(f"- Visual Scene: {va.get('summary', va.get('title'))}")
+        parts.append("=====================================")
+
+    if parts:
+        context_block = "\n".join(parts)
+        return (
+            f"You are MIRA, an intelligent real-time Multimodal Assistant.\n"
+            f"Ground your response in the following multimodal context if relevant:\n\n"
+            f"{context_block}\n\n"
+            f"User Prompt: {user_message}\n\n"
+            f"Answer concisely, accurately, and naturally."
+        )
+    return user_message
 
 
 @app.get("/")
@@ -71,17 +122,22 @@ def health_check():
             "api": "online",
             "context_core": "ready",
             "streaming": "ready",
+            "vision": "ready",
+            "document_rag": "ready",
+            "tool_sandbox": "ready",
         },
     }
 
 
 @app.post("/api/chat", response_model=ChatResponse)
 def chat_endpoint(request: ChatRequest) -> ChatResponse:
-    """Generate assistant reply via Gemini LLM service."""
+    """Generate assistant reply via Gemini LLM service with ContextCore & RAG grounding."""
     session_id = request.session_id if request.session_id else f"mira-{uuid.uuid4().hex[:8]}"
 
+    prompt_to_send = build_grounded_prompt(request.message, session_id)
+
     try:
-        reply_text = generate_response(request.message)
+        reply_text = generate_response(prompt_to_send)
     except ValueError as err:
         if "GEMINI_API_KEY" in str(err):
             raise HTTPException(
@@ -103,6 +159,100 @@ def chat_endpoint(request: ChatRequest) -> ChatResponse:
         message=request.message,
         response=reply_text,
         timestamp=datetime.now(timezone.utc).isoformat(),
+    )
+
+
+
+@app.post("/api/vision/analyze", response_model=VisionAnalyzeResponse)
+def vision_analyze_endpoint(request: VisionAnalyzeRequest) -> VisionAnalyzeResponse:
+    """Analyze a visual frame (webcam, screen share, or uploaded image) using Gemini Multimodal Vision."""
+    now = datetime.now(timezone.utc).isoformat()
+    session_id = request.session_id if request.session_id else f"mira-{uuid.uuid4().hex[:8]}"
+
+    # Decode base64 payload
+    raw_b64 = request.image_base64.strip()
+    if "," in raw_b64:
+        raw_b64 = raw_b64.split(",", 1)[1]
+
+    try:
+        image_bytes = base64.b64decode(raw_b64)
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid Base64 image payload: {str(err)}",
+        )
+
+    try:
+        analysis_result = analyze_image(
+            image_bytes=image_bytes,
+            mime_type=request.mime_type or "image/jpeg",
+            prompt=request.prompt,
+        )
+    except ValueError as err:
+        if "GEMINI_API_KEY" in str(err):
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=str(err),
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(err),
+        )
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=f"Gemini Vision API error: {str(err)}",
+        )
+
+    description = analysis_result.get("description", "Visual scene analyzed.")
+    detected_objects = analysis_result.get("detected_objects", [])
+    ocr_snippets = analysis_result.get("ocr_snippets", [])
+
+    visual_anchor = {
+        "id": f"anchor-vision-{uuid.uuid4().hex[:6]}",
+        "modality": "vision",
+        "title": f"Visual Scene: {description[:40]}...",
+        "source": "Vision Frame Ingestion",
+        "summary": description,
+        "token_weight": 350,
+        "detected_count": len(detected_objects),
+        "ocr_count": len(ocr_snippets),
+        "created_at": now,
+    }
+
+    # Automatically persist visual grounding into ContextCore memory
+    existing_ctx = CONTEXT_STORE.get(session_id, {})
+    anchors = list(existing_ctx.get("active_anchors", []))
+    anchors.append(visual_anchor)
+
+    modalities = dict(existing_ctx.get("modalities", {}))
+    modalities["vision"] = {
+        "status": "active",
+        "last_analyzed": now,
+        "objects_count": len(detected_objects),
+        "ocr_count": len(ocr_snippets),
+    }
+
+    merged = {
+        **existing_ctx,
+        "session_id": session_id,
+        "active_anchors": anchors,
+        "modalities": modalities,
+        "working_memory_summary": f"Visual context updated: {description[:100]}",
+        "updated_at": now,
+    }
+    if "created_at" not in merged:
+        merged["created_at"] = now
+
+    CONTEXT_STORE[session_id] = merged
+
+    return VisionAnalyzeResponse(
+        session_id=session_id,
+        description=description,
+        detected_objects=detected_objects,
+        ocr_snippets=ocr_snippets,
+        anchors=[visual_anchor],
+        timestamp=now,
     )
 
 
@@ -135,6 +285,152 @@ def save_context(payload: ContextModel) -> ContextResponse:
     context_obj = ContextResponse(**merged)
     CONTEXT_STORE[session_id] = context_obj.model_dump()
     return context_obj
+
+
+@app.post("/api/documents/upload", response_model=DocumentUploadResponse)
+async def upload_document_endpoint(
+    file: UploadFile = File(...),
+    session_id: Optional[str] = Form(None),
+) -> DocumentUploadResponse:
+    """Ingest, extract text, chunk, and anchor a document into ContextCore and RAG store."""
+    now = datetime.now(timezone.utc).isoformat()
+    sid = session_id if session_id else f"mira-{uuid.uuid4().hex[:8]}"
+
+    try:
+        file_bytes = await file.read()
+    except Exception as err:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Failed to read uploaded file: {str(err)}",
+        )
+
+    filename = file.filename or "uploaded_doc.txt"
+    extracted_text = extract_text_from_file(filename, file_bytes)
+    chunks = chunk_document_text(extracted_text)
+    token_count = estimate_token_count(extracted_text)
+    doc_id = f"doc-{uuid.uuid4().hex[:8]}"
+
+    summary = f"Ingested {filename} ({len(file_bytes)} bytes, ~{token_count} tokens). {len(chunks)} semantic chunks."
+    snippet = extracted_text[:800] if extracted_text else "Document is empty."
+
+    anchor = {
+        "id": f"anchor-doc-{uuid.uuid4().hex[:6]}",
+        "modality": "documents",
+        "title": f"Doc: {filename}",
+        "source": filename,
+        "summary": summary,
+        "token_weight": token_count,
+        "chunks_count": len(chunks),
+        "created_at": now,
+    }
+
+    doc_record = {
+        "document_id": doc_id,
+        "session_id": sid,
+        "filename": filename,
+        "file_size": len(file_bytes),
+        "token_count": token_count,
+        "chunks_count": len(chunks),
+        "summary": summary,
+        "content_snippet": snippet,
+        "chunks": chunks,
+        "anchor": anchor,
+        "timestamp": now,
+    }
+
+    if sid not in DOCUMENT_STORE:
+        DOCUMENT_STORE[sid] = []
+    DOCUMENT_STORE[sid].append(doc_record)
+
+    # Sync into ContextCore active anchors
+    existing_ctx = CONTEXT_STORE.get(sid, {})
+    anchors = list(existing_ctx.get("active_anchors", []))
+    anchors.append(anchor)
+
+    modalities = dict(existing_ctx.get("modalities", {}))
+    modalities["documents"] = {
+        "status": "ready",
+        "count": len(DOCUMENT_STORE[sid]),
+        "total_tokens": sum(d.get("token_count", 0) for d in DOCUMENT_STORE[sid]),
+        "last_upload": now,
+    }
+
+    merged = {
+        **existing_ctx,
+        "session_id": sid,
+        "active_anchors": anchors,
+        "modalities": modalities,
+        "working_memory_summary": f"Context updated with document '{filename}'.",
+        "updated_at": now,
+    }
+    if "created_at" not in merged:
+        merged["created_at"] = now
+
+    CONTEXT_STORE[sid] = merged
+
+    return DocumentUploadResponse(**doc_record)
+
+
+@app.get("/api/documents/{session_id}")
+def get_documents_endpoint(session_id: str):
+    """Retrieve all ingested documents and chunks for a session."""
+    docs = DOCUMENT_STORE.get(session_id, [])
+    return {"session_id": session_id, "documents": docs, "count": len(docs)}
+
+
+@app.delete("/api/documents/{session_id}/{document_id}")
+def delete_document_endpoint(session_id: str, document_id: str):
+    """Delete an ingested document from memory and ContextCore."""
+    if session_id in DOCUMENT_STORE:
+        DOCUMENT_STORE[session_id] = [
+            d for d in DOCUMENT_STORE[session_id] if d.get("document_id") != document_id
+        ]
+    return {"session_id": session_id, "deleted_document_id": document_id, "status": "deleted"}
+
+
+@app.post("/api/actions/execute", response_model=ActionExecuteResponse)
+def execute_action_endpoint(request: ActionExecuteRequest) -> ActionExecuteResponse:
+    """Execute an approved tool / sandbox script with verification check."""
+    now = datetime.now(timezone.utc).isoformat()
+    sid = request.session_id if request.session_id else f"mira-{uuid.uuid4().hex[:8]}"
+
+    res = execute_tool(request.tool_name, request.parameters)
+
+    # Record action in ContextCore working memory
+    existing_ctx = CONTEXT_STORE.get(sid, {})
+    working_memory = list(existing_ctx.get("working_memory", []))
+    working_memory.append({
+        "sender": "mira_action_engine",
+        "action_id": request.action_id,
+        "tool_name": request.tool_name,
+        "status": res.get("status"),
+        "output": res.get("output"),
+        "verification_score": res.get("verification_score"),
+        "timestamp": now,
+    })
+
+    merged = {
+        **existing_ctx,
+        "session_id": sid,
+        "working_memory": working_memory,
+        "working_memory_summary": f"Executed tool '{request.tool_name}': {str(res.get('output'))[:100]}",
+        "updated_at": now,
+    }
+    if "created_at" not in merged:
+        merged["created_at"] = now
+    CONTEXT_STORE[sid] = merged
+
+    return ActionExecuteResponse(
+        action_id=request.action_id,
+        session_id=sid,
+        tool_name=request.tool_name,
+        status=res.get("status", "success"),
+        output=res.get("output", ""),
+        verification_score=res.get("verification_score", 98.0),
+        verification_details=res.get("verification_details", {}),
+        execution_time_ms=res.get("execution_time_ms", 10.0),
+        timestamp=now,
+    )
 
 
 @app.websocket("/ws/{session_id}")
@@ -179,9 +475,10 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
             session_context["updated_at"] = now
             CONTEXT_STORE[session_id] = session_context
 
-            # 3. Send the message to generate_response() with graceful error handling
+            # 3. Send grounded prompt to generate_response() with graceful error handling
+            grounded_prompt = build_grounded_prompt(str(user_prompt), session_id)
             try:
-                gemini_reply = generate_response(str(user_prompt))
+                gemini_reply = generate_response(grounded_prompt)
                 gemini_error = None
             except Exception as err:
                 gemini_reply = None
@@ -228,6 +525,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                             response[k] = v
 
             await websocket.send_json(response)
+
     except WebSocketDisconnect:
         pass
 

@@ -27,11 +27,14 @@ export const VisionPage: React.FC = () => {
     addDocument,
     captureSnapshot,
     addAnchor,
+    addBoundingBox,
+    clearBoundingBoxes,
   } = useMira();
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [streamActive, setStreamActive] = useState<boolean>(false);
+  const [uploadedImageBase64, setUploadedImageBase64] = useState<string | null>(null);
   const [selectedOverlay, setSelectedOverlay] = useState<'boxes' | 'ocr' | 'all'>('all');
   const [observationText, setObservationText] = useState<string>('');
   const sessionIdRef = useRef<string>(`mira-vision-${Date.now().toString(36)}`);
@@ -58,7 +61,26 @@ export const VisionPage: React.FC = () => {
     };
   }, []);
 
+  const captureFrameBase64 = (): string | null => {
+    if (uploadedImageBase64) return uploadedImageBase64;
+    if (videoRef.current && streamActive) {
+      const video = videoRef.current;
+      if (video.videoWidth > 0 && video.videoHeight > 0) {
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.min(1280, video.videoWidth);
+        canvas.height = Math.min(720, video.videoHeight);
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          return canvas.toDataURL('image/jpeg', 0.85);
+        }
+      }
+    }
+    return null;
+  };
+
   const startMediaStream = async (type: 'camera' | 'screen') => {
+    setUploadedImageBase64(null);
     try {
       let stream: MediaStream | null = null;
       if (type === 'camera' && navigator.mediaDevices?.getUserMedia) {
@@ -87,14 +109,6 @@ export const VisionPage: React.FC = () => {
             },
           },
         }).catch((err) => console.warn('[VisionPage] Context save error:', err));
-
-        if (wsClient.getStatus() === 'connected') {
-          wsClient.sendMessage({
-            type: 'vision_stream_start',
-            message: `MIRA began live ${type} observation stream.`,
-            source: type,
-          });
-        }
       }
     } catch (err) {
       console.warn(`Could not start ${type} stream:`, err);
@@ -110,157 +124,88 @@ export const VisionPage: React.FC = () => {
       videoRef.current.srcObject = null;
     }
     setStreamActive(false);
+    setUploadedImageBase64(null);
     setVisionSource('synthetic_test');
     setAgentState('idle');
-
-    // Notify backend ContextCore of stream pause
-    apiClient.saveContext({
-      session_id: sessionIdRef.current,
-      modalities: {
-        vision: {
-          source: 'synthetic_test',
-          status: 'idle',
-          updated_at: new Date().toISOString(),
-        },
-      },
-    }).catch((err) => console.warn('[VisionPage] Context save error:', err));
-
-    if (wsClient.getStatus() === 'connected') {
-      wsClient.sendMessage({
-        type: 'vision_stream_stop',
-        message: 'MIRA paused visual feed stream.',
-      });
-    }
   };
 
   const handleUploadImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
+      const reader = new FileReader();
+      reader.onload = () => {
+        const b64 = reader.result as string;
+        setUploadedImageBase64(b64);
+        setStreamActive(false);
+        setVisionSource('upload' as any);
+        setAgentState('observing');
+        setLoopStage('SEES');
+        setObservationText(`Uploaded image "${file.name}". Click "Scan Scene" to analyze with Gemini Multimodal Vision.`);
+      };
+      reader.readAsDataURL(file);
       addDocument(file);
-      setVisionSource('synthetic_test');
-      setAgentState('observing');
-      setLoopStage('SEES');
-
-      // Update backend ContextCore with uploaded image modality
-      apiClient.saveContext({
-        session_id: sessionIdRef.current,
-        modalities: {
-          vision: {
-            source: 'upload',
-            filename: file.name,
-            size: file.size,
-            status: 'active',
-            updated_at: new Date().toISOString(),
-          },
-        },
-      }).catch((err) => console.warn('[VisionPage] Context save error:', err));
-
-      if (wsClient.getStatus() === 'connected') {
-        wsClient.sendMessage({
-          type: 'vision_upload',
-          message: `MIRA ingested uploaded visual document: ${file.name}.`,
-          filename: file.name,
-        });
-      }
     }
   };
 
   const handleTriggerAnalysis = async () => {
+    const frameB64 = captureFrameBase64();
+    if (!frameB64) {
+      setObservationText('Please start camera, share screen, or upload an image first.');
+      return;
+    }
+
     setAgentState('observing');
     setLoopStage('SEES');
     captureSnapshot();
-
-    const scanPrompt = `[VISION_SCAN] Analyze current ${visionFeed.sourceType} visual frame (${visionFeed.resolution}). Detected ${visionFeed.detectedBoxes.length} visual bounding boxes and ${visionFeed.ocrSnippets.length} OCR text snippets. Provide visual grounding and scene understanding.`;
-
-    setObservationText('Scanning scene with Gemini and ContextCore...');
+    setObservationText('Analyzing real visual pixels with Gemini Multimodal Vision...');
 
     try {
-      let analysisResult = '';
-
-      // Sync visual anchor with backend ContextCore REST endpoint
-      await apiClient.saveContext({
-        session_id: sessionIdRef.current,
-        modalities: {
-          vision: {
-            source: visionFeed.sourceType,
-            resolution: visionFeed.resolution,
-            status: 'active',
-            boxes_count: visionFeed.detectedBoxes.length,
-            ocr_count: visionFeed.ocrSnippets.length,
-          },
-        },
-        active_anchors: [
-          {
-            modality: 'vision',
-            title: `Visual Snapshot: ${visionFeed.sourceType}`,
-            source: `Vision Sensor (${visionFeed.resolution})`,
-            summary: `Detected ${visionFeed.detectedBoxes.length} UI widgets and OCR text elements.`,
-            token_weight: 280,
-          },
-        ],
-      });
-
-      if (wsClient.getStatus() === 'connected') {
-        setLoopStage('UNDERSTANDS');
-        const replyPromise = new Promise<string>((resolve, reject) => {
-          const timeout = setTimeout(() => reject(new Error('WebSocket timeout')), 30000);
-          const unsub = wsClient.onMessage((payload) => {
-            if (payload.response || payload.message) {
-              clearTimeout(timeout);
-              unsub();
-              resolve(payload.response || payload.message || '');
-            } else if (payload.error) {
-              clearTimeout(timeout);
-              unsub();
-              reject(new Error(payload.error));
-            }
-          });
-        });
-
-        wsClient.sendMessage({
-          type: 'vision_scan',
-          message: scanPrompt,
-          modality: 'vision',
-          source: visionFeed.sourceType,
-        });
-
-        analysisResult = await replyPromise;
-      } else {
-        setLoopStage('UNDERSTANDS');
-        const res = await apiClient.sendChatMessage(scanPrompt, sessionIdRef.current);
-        analysisResult = res.response;
-      }
+      setLoopStage('UNDERSTANDS');
+      const response = await apiClient.analyzeVision(
+        frameB64,
+        'image/jpeg',
+        'Analyze this screen/camera visual frame in detail. Extract detected UI objects and visible text.',
+        sessionIdRef.current
+      );
 
       setLoopStage('REASONS');
-      setObservationText(analysisResult);
+      setObservationText(response.description);
+
+      // Inject real detected boxes from Gemini
+      clearBoundingBoxes();
+      if (response.detected_objects && response.detected_objects.length > 0) {
+        response.detected_objects.forEach((obj, idx) => {
+          addBoundingBox({
+            id: obj.id || `box-${idx + 1}`,
+            label: obj.label,
+            confidence: obj.confidence || 95,
+            box: obj.box || [10, 10, 80, 80],
+            category: (obj.category as any) || 'ui_element',
+            color: idx % 2 === 0 ? '#f43f5e' : '#a855f7',
+          });
+        });
+      }
 
       addAnchor({
         modality: 'vision',
         title: `Visual Grounding (${visionFeed.sourceType})`,
         source: `Vision Sensor (${visionFeed.resolution})`,
-        summary: analysisResult.slice(0, 140),
-        tokenWeight: 280,
+        summary: response.description.slice(0, 140),
+        tokenWeight: 350,
         isPinned: false,
       });
 
       setLoopStage('VERIFIES');
       setTimeout(() => {
-        setAgentState(streamActive ? 'observing' : 'idle');
+        setAgentState(streamActive || uploadedImageBase64 ? 'observing' : 'idle');
       }, 2000);
     } catch (err) {
       console.error('[VisionPage] Scan analysis error:', err);
-      setObservationText(`Scan analysis error: ${(err as Error).message}`);
-      addAnchor({
-        modality: 'vision',
-        title: 'Visual Snapshot: Screen Context',
-        source: 'Vision Sensor (1920x1080)',
-        summary: 'Detected UI widgets, code editor, and document notes with 2 bounding anchors.',
-        tokenWeight: 280,
-        isPinned: false,
-      });
+      setObservationText(`Vision analysis error: ${(err as Error).message}`);
+      setAgentState('error');
       setTimeout(() => {
         setAgentState(streamActive ? 'observing' : 'idle');
-      }, 2000);
+      }, 2500);
     }
   };
 
@@ -269,6 +214,20 @@ export const VisionPage: React.FC = () => {
       stopStream();
     };
   }, []);
+
+  const formatObservationText = (text: string) => {
+    if (!text) return '';
+    const cleaned = text.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+    try {
+      const parsed = JSON.parse(cleaned);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => item.label || JSON.stringify(item)).join(' • ');
+      }
+    } catch {
+      // plain text fallback
+    }
+    return cleaned;
+  };
 
   return (
     <div className="page-container vision-page-container">
@@ -327,6 +286,17 @@ export const VisionPage: React.FC = () => {
             {streamActive ? (
               <div className="vision-live-screen">
                 <video ref={videoRef} className="vision-video" autoPlay playsInline muted />
+                {(selectedOverlay === 'boxes' || selectedOverlay === 'all') && (
+                  <BoundingBoxOverlay boxes={visionFeed.detectedBoxes} />
+                )}
+              </div>
+            ) : uploadedImageBase64 ? (
+              <div className="vision-live-screen" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <img
+                  src={uploadedImageBase64}
+                  alt="Uploaded Frame"
+                  style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', borderRadius: '8px' }}
+                />
                 {(selectedOverlay === 'boxes' || selectedOverlay === 'all') && (
                   <BoundingBoxOverlay boxes={visionFeed.detectedBoxes} />
                 )}
@@ -459,7 +429,7 @@ export const VisionPage: React.FC = () => {
                 {agentState === 'observing' ? 'MIRA is Observing ✨' : 'MIRA Eyes Ready'}
               </h3>
               <p className="observer-status-desc">
-                {observationText ||
+                {formatObservationText(observationText) ||
                   (agentState === 'observing'
                     ? 'Analyzing visual frames and mapping detected objects into ContextCore.'
                     : 'Start a stream or upload an image to begin real-time observation.')}

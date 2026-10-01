@@ -95,35 +95,48 @@ export const DocumentsPage: React.FC = () => {
     }
   };
 
-  const handleUploadFiles = (files: File[]) => {
-    files.forEach((file) => {
-      addDocument(file);
-      const estTokens = Math.max(120, Math.round(file.size / 40));
-      const msg = `MIRA ingested document: ${file.name} (${Math.round(file.size / 1024)} KB, ~${estTokens} tokens). Stored in ContextCore semantic store.`;
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadStatusMsg, setUploadStatusMsg] = useState<string | null>(null);
 
-      if (wsClient.getStatus() === 'connected') {
-        wsClient.sendMessage({
-          type: 'document_uploaded',
-          filename: file.name,
-          filesize: file.size,
-          token_count: estTokens,
-          message: msg,
-        });
+  const handleUploadFiles = async (files: File[]) => {
+    if (files.length === 0) return;
+    setIsUploading(true);
+    setUploadStatusMsg(`Parsing and embedding ${files.length} document(s)...`);
+
+    for (const file of files) {
+      try {
+        const res = await apiClient.uploadDocument(file, sessionIdRef.current);
+        const docItem = {
+          id: res.document_id,
+          name: res.filename,
+          size: res.file_size,
+          type: file.type || 'text/plain',
+          uploadedAt: 'Just now',
+          tokenCount: res.token_count,
+          status: 'ready' as const,
+          chunksCount: res.chunks_count,
+          summary: res.summary,
+          contentSnippet: res.content_snippet,
+        };
+        addDocument(docItem);
+
+        if (wsClient.getStatus() === 'connected') {
+          wsClient.sendMessage({
+            type: 'document_uploaded',
+            filename: res.filename,
+            filesize: res.file_size,
+            token_count: res.token_count,
+            message: `MIRA parsed document: ${res.filename} (${res.chunks_count} semantic chunks, ~${res.token_count} tokens). Stored in ContextCore.`,
+          });
+        }
+      } catch (err) {
+        console.warn('[DocumentsPage] Backend upload fallback:', err);
+        addDocument(file);
       }
-    });
+    }
 
-    setTimeout(() => {
-      const sessionId = sessionIdRef.current;
-      apiClient.saveContext({
-        session_id: sessionId,
-        modalities: {
-          documents: {
-            status: 'ready',
-            updated_at: new Date().toISOString(),
-          },
-        },
-      }).catch((err) => console.warn('[DocumentsPage] Context sync error:', err));
-    }, 100);
+    setIsUploading(false);
+    setUploadStatusMsg(null);
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -151,6 +164,7 @@ export const DocumentsPage: React.FC = () => {
 
   const handleRemoveDocument = (docId: string, docName: string) => {
     removeDocument(docId);
+    apiClient.deleteDocument(sessionIdRef.current, docId).catch(() => {});
     const remaining = documents.filter((d) => d.id !== docId);
     syncDocumentsToBackend(remaining, `MIRA removed document: ${docName} from ContextCore semantic store.`);
   };
@@ -158,6 +172,7 @@ export const DocumentsPage: React.FC = () => {
   const filteredDocs = documents.filter((doc) =>
     doc.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
 
   const getDocIcon = (name: string) => {
     if (name.endsWith('.pdf')) {
@@ -226,20 +241,28 @@ export const DocumentsPage: React.FC = () => {
         <div className="documents-left-column">
           {/* Drag & Drop Hero Zone */}
           <div
-            className={`documents-dropzone ${isDragging ? 'dragging' : ''}`}
+            className={`documents-dropzone ${isDragging ? 'dragging' : ''} ${isUploading ? 'uploading' : ''}`}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
-            onClick={() => fileInputRef.current?.click()}
+            onClick={() => !isUploading && fileInputRef.current?.click()}
+            style={{ cursor: isUploading ? 'wait' : 'pointer' }}
           >
             <div className="dropzone-icon-circle">
-              <Upload size={24} style={{ color: 'var(--brand-mint)' }} />
+              {isUploading ? (
+                <Sparkles size={24} style={{ color: 'var(--brand-mint)', animation: 'spin 2s linear infinite' }} />
+              ) : (
+                <Upload size={24} style={{ color: 'var(--brand-mint)' }} />
+              )}
             </div>
-            <h3 className="dropzone-title">Drop your documents here, or browse</h3>
+            <h3 className="dropzone-title">
+              {isUploading ? (uploadStatusMsg || 'Ingesting document...') : 'Drop your documents here, or browse'}
+            </h3>
             <p className="dropzone-sub">
-              Supports PDF, Markdown, TXT, JSON, PNG, and JPG. Automatically indexed for ContextCore retrieval.
+              Supports PDF, DOCX, Markdown, TXT, JSON, and images. Automatically parsed and anchored for ContextCore RAG grounding.
             </p>
           </div>
+
 
           {/* Search & Filter Bar */}
           <div className="docs-search-filter-bar">

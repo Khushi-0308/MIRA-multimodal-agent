@@ -7,6 +7,7 @@ import {
   FileText,
   Brain,
   ShieldCheck,
+  Volume2,
 } from 'lucide-react';
 
 interface MessageItemProps {
@@ -14,7 +15,7 @@ interface MessageItemProps {
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
-  const { devMode, theme, agentState } = useMira();
+  const { devMode, theme, agentState, speakText, stopSpeaking, audioStream } = useMira();
   const isUser = message.sender === 'user';
   const isSystem = message.sender === 'system';
 
@@ -40,6 +41,34 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message }) => {
             </div>
             <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>MIRA</span>
             <span style={{ fontSize: '10.5px', color: 'var(--text-muted)' }}>{message.timestamp}</span>
+            <button
+              className="message-speak-btn"
+              onClick={() => {
+                if (audioStream.isSpeakingTTS) {
+                  stopSpeaking();
+                } else {
+                  speakText(message.text);
+                }
+              }}
+              title={audioStream.isSpeakingTTS ? 'Stop Speaking' : 'Read aloud with MIRA voice'}
+              style={{
+                marginLeft: 'auto',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--brand-primary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
+                fontSize: '11px',
+                fontWeight: 600,
+                padding: '2px 6px',
+                borderRadius: '4px',
+              }}
+            >
+              <Volume2 size={13} />
+              <span>{audioStream.isSpeakingTTS ? 'Speaking...' : 'Listen'}</span>
+            </button>
           </>
         )}
       </div>

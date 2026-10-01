@@ -27,7 +27,7 @@ import {
   INITIAL_MESSAGES,
   INITIAL_REASONING_STEPS,
 } from '../utils/mockData';
-import { AudioVisualizerController } from '../utils/audio';
+import { AudioVisualizerController, speechRecognizer, speechSynthesizer } from '../utils/audio';
 import { getSavedTheme, saveTheme, getSavedAccessory, saveAccessory } from '../utils/themeConfig';
 
 interface MiraContextType {
@@ -79,11 +79,19 @@ interface MiraContextType {
   toggleListening: () => Promise<void>;
   toggleMute: () => void;
   setSpeechRate: (rate: number) => void;
+  speakText: (text: string) => void;
+  stopSpeaking: () => void;
+  voiceAutoSpeak: boolean;
+  setVoiceAutoSpeak: (auto: boolean) => void;
+  speechTranscript: string;
+  setSpeechTranscript: (t: string) => void;
+  isSpeechRecognitionSupported: boolean;
 
   // Documents
   documents: DocumentItem[];
-  addDocument: (doc: File) => void;
+  addDocument: (doc: File | DocumentItem) => void;
   removeDocument: (id: string) => void;
+
   selectedDocForPreview: DocumentItem | null;
   setSelectedDocForPreview: (doc: DocumentItem | null) => void;
 
@@ -142,6 +150,12 @@ export const MiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Audio visualizer controller
   const audioCtrlRef = useRef<AudioVisualizerController>(new AudioVisualizerController());
+  const [speechTranscript, setSpeechTranscript] = useState<string>('');
+  const [voiceAutoSpeak, setVoiceAutoSpeak] = useState<boolean>(true);
+  const isSpeechRecognitionSupported =
+    typeof window !== 'undefined' &&
+    ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window);
+
   const [audioStream, setAudioStream] = useState<AudioStreamState>({
     isListening: false,
     isMuted: false,
@@ -390,6 +404,7 @@ export const MiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const toggleListening = async () => {
     if (audioStream.isListening) {
+      speechRecognizer.stop();
       audioCtrlRef.current.stopListening();
       setAudioStream((prev) => ({
         ...prev,
@@ -398,11 +413,25 @@ export const MiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
         vadActive: false,
         audioFrequencies: new Array(32).fill(0.05),
       }));
-      setAgentState('idle');
+      setAgentState((prev) => (prev === 'listening' ? 'idle' : prev));
     } else {
+      setSpeechTranscript('');
       setAudioStream((prev) => ({ ...prev, isListening: true }));
       setAgentState('listening');
       setLoopStage('HEARS');
+
+      speechRecognizer.start(
+        (transcript, _isFinal) => {
+          setSpeechTranscript(transcript);
+        },
+        (err) => {
+          console.warn('[SpeechRecognition] error:', err);
+        },
+        () => {
+          setAudioStream((prev) => ({ ...prev, isListening: false }));
+          setAgentState((prev) => (prev === 'listening' ? 'idle' : prev));
+        }
+      );
 
       await audioCtrlRef.current.startListening((spectrum, volume, vad) => {
         setAudioStream((prev) => ({
@@ -415,7 +444,37 @@ export const MiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const speakText = (text: string) => {
+    if (audioStream.isMuted) return;
+    setAudioStream((prev) => ({ ...prev, isSpeakingTTS: true }));
+    setAgentState('speaking');
+    speechSynthesizer.speak(text, {
+      rate: (audioStream.speechRate || 140) / 130,
+      onStart: () => {
+        setAudioStream((prev) => ({ ...prev, isSpeakingTTS: true }));
+        setAgentState('speaking');
+      },
+      onEnd: () => {
+        setAudioStream((prev) => ({ ...prev, isSpeakingTTS: false }));
+        setAgentState((prev) => (prev === 'speaking' ? 'idle' : prev));
+      },
+      onError: () => {
+        setAudioStream((prev) => ({ ...prev, isSpeakingTTS: false }));
+        setAgentState((prev) => (prev === 'speaking' ? 'idle' : prev));
+      },
+    });
+  };
+
+  const stopSpeaking = () => {
+    speechSynthesizer.stop();
+    setAudioStream((prev) => ({ ...prev, isSpeakingTTS: false }));
+    setAgentState((prev) => (prev === 'speaking' ? 'idle' : prev));
+  };
+
   const toggleMute = () => {
+    if (!audioStream.isMuted) {
+      stopSpeaking();
+    }
     setAudioStream((prev) => ({ ...prev, isMuted: !prev.isMuted }));
   };
 
@@ -423,36 +482,52 @@ export const MiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setAudioStream((prev) => ({ ...prev, speechRate: rate }));
   };
 
-  const addDocument = (file: File) => {
-    const estTokens = Math.max(120, Math.round(file.size / 40));
-    const newDoc: DocumentItem = {
-      id: `doc-${Date.now()}`,
-      name: file.name,
-      size: file.size,
-      type: file.type || 'text/plain',
-      uploadedAt: 'Just now',
-      tokenCount: estTokens,
-      status: 'ready',
-      chunksCount: Math.ceil(estTokens / 400),
-      summary: `Uploaded document "${file.name}" indexed for semantic retrieval and ContextCore fusion.`,
-      contentSnippet: `File: ${file.name} (${Math.round(file.size / 1024)} KB) - Ready for agent tool ingestion.`,
-    };
+  const addDocument = (docOrFile: File | DocumentItem) => {
+    if ('name' in docOrFile && 'size' in docOrFile && !('id' in docOrFile)) {
+      const file = docOrFile as File;
+      const estTokens = Math.max(120, Math.round(file.size / 40));
+      const newDoc: DocumentItem = {
+        id: `doc-${Date.now()}`,
+        name: file.name,
+        size: file.size,
+        type: file.type || 'text/plain',
+        uploadedAt: 'Just now',
+        tokenCount: estTokens,
+        status: 'ready',
+        chunksCount: Math.ceil(estTokens / 400),
+        summary: `Uploaded document "${file.name}" indexed for semantic retrieval and ContextCore fusion.`,
+        contentSnippet: `File: ${file.name} (${Math.round(file.size / 1024)} KB) - Ready for agent tool ingestion.`,
+      };
 
-    setDocuments((prev) => [newDoc, ...prev]);
+      setDocuments((prev) => [newDoc, ...prev]);
 
-    addAnchor({
-      modality: 'documents',
-      title: `Doc: ${file.name}`,
-      source: `Uploaded: ${file.name}`,
-      summary: `Indexed ${estTokens} tokens from uploaded file.`,
-      tokenWeight: estTokens,
-      isPinned: false,
-    });
+      addAnchor({
+        modality: 'documents',
+        title: `Doc: ${file.name}`,
+        source: `Uploaded: ${file.name}`,
+        summary: `Indexed ${estTokens} tokens from uploaded file.`,
+        tokenWeight: estTokens,
+        isPinned: false,
+      });
+    } else {
+      const docItem = docOrFile as DocumentItem;
+      setDocuments((prev) => [docItem, ...prev.filter((d) => d.id !== docItem.id)]);
+      addAnchor({
+        modality: 'documents',
+        title: `Doc: ${docItem.name}`,
+        source: `Uploaded: ${docItem.name}`,
+        summary: docItem.summary || `Indexed ${docItem.tokenCount} tokens.`,
+        tokenWeight: docItem.tokenCount,
+        isPinned: false,
+      });
+    }
   };
 
   const removeDocument = (id: string) => {
     setDocuments((prev) => prev.filter((d) => d.id !== id));
+    removeAnchor(`anc-${id}`);
   };
+
 
   useEffect(() => {
     return () => {
@@ -502,6 +577,13 @@ export const MiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
         toggleListening,
         toggleMute,
         setSpeechRate,
+        speakText,
+        stopSpeaking,
+        voiceAutoSpeak,
+        setVoiceAutoSpeak,
+        speechTranscript,
+        setSpeechTranscript,
+        isSpeechRecognitionSupported,
         documents,
         addDocument,
         removeDocument,
