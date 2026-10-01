@@ -21,14 +21,24 @@ export interface MyDayTask {
 }
 
 
+export type ReminderRepeat = 'once' | 'daily' | 'weekly';
+export type ReminderPriority = 'low' | 'medium' | 'high' | 'urgent';
+
 export interface MyDayReminder {
   id: string;
-  text: string;
+  title: string;
+  text?: string;
+  date?: string;
   time: string;
-  tag: string;
-  urgent: boolean;
+  repeat: ReminderRepeat;
+  priority: ReminderPriority;
+  tag?: string;
+  urgent?: boolean;
+  completed: boolean;
   dismissed?: boolean;
+  createdAt: string;
 }
+
 
 export interface MyDayEvent {
   id: string;

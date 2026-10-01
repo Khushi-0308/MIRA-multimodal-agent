@@ -9,6 +9,8 @@ import {
   TaskCategory,
   TaskPriority,
   MoodEmoji,
+  ReminderRepeat,
+  ReminderPriority,
 } from '../types/myDay';
 import {
   DEFAULT_MY_DAY_TASKS,
@@ -39,10 +41,12 @@ import {
   X,
   Target,
   Coffee,
-  AlertCircle,
+  AlertTriangle,
   Mic,
   Edit3,
+  Repeat,
 } from 'lucide-react';
+
 
 
 const MOODS: Array<{ emoji: MoodEmoji; label: string }> = [
@@ -101,10 +105,15 @@ export const MyDayPage: React.FC = () => {
   const [editDate, setEditDate] = useState('');
   const [editTimeframe, setEditTimeframe] = useState<'today' | 'upcoming'>('today');
 
-  // New Reminder state
-  const [newReminderText, setNewReminderText] = useState('');
+  // Reminders State
+  const [reminderFilter, setReminderFilter] = useState<'all' | 'today' | 'upcoming' | 'urgent' | 'completed'>('all');
+  const [newReminderTitle, setNewReminderTitle] = useState('');
+  const [newReminderDesc, setNewReminderDesc] = useState('');
+  const [newReminderDate, setNewReminderDate] = useState('Today');
   const [newReminderTime, setNewReminderTime] = useState('');
-  const [newReminderTag, setNewReminderTag] = useState('Urgent');
+  const [newReminderRepeat, setNewReminderRepeat] = useState<ReminderRepeat>('once');
+  const [newReminderPriority, setNewReminderPriority] = useState<ReminderPriority>('high');
+  const [newReminderTag, setNewReminderTag] = useState('Milestone');
   const [isAddingReminder, setIsAddingReminder] = useState(false);
 
   // New Event state
@@ -169,8 +178,12 @@ export const MyDayPage: React.FC = () => {
   const completedTasksCount = totalCompletedAll;
   const totalTasksCount = totalTasksAll;
   const taskProgressPct = overallProgressPct;
-  const activeRemindersCount = reminders.filter((r) => !r.dismissed).length;
 
+  // Reminder Calculations
+  const activeRemindersCount = reminders.filter((r) => !r.completed && !r.dismissed).length;
+  const urgentRemindersCount = reminders.filter((r) => !r.completed && (r.priority === 'urgent' || r.urgent)).length;
+  const todayRemindersList = reminders.filter((r) => (r.date || 'Today').toLowerCase() === 'today');
+  const upcomingRemindersList = reminders.filter((r) => (r.date || 'Today').toLowerCase() !== 'today');
 
   // Task Handlers
   const handleToggleTask = (id: string) => {
@@ -238,30 +251,45 @@ export const MyDayPage: React.FC = () => {
     setTasks((prev) => prev.filter((t) => t.id !== id));
   };
 
-
   // Reminder Handlers
   const handleAddReminder = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newReminderText.trim()) return;
+    const title = (newReminderTitle || newReminderDesc).trim();
+    if (!title) return;
 
     const rem: MyDayReminder = {
       id: `rem-${Date.now()}`,
-      text: newReminderText.trim(),
+      title: title,
+      text: newReminderDesc.trim() || undefined,
+      date: newReminderDate.trim() || 'Today',
       time: newReminderTime.trim() || 'Today',
+      repeat: newReminderRepeat,
+      priority: newReminderPriority,
       tag: newReminderTag || 'Reminder',
-      urgent: newReminderTag.toLowerCase().includes('urgent') || newReminderTag.toLowerCase().includes('milestone'),
+      urgent: newReminderPriority === 'urgent' || newReminderTag.toLowerCase().includes('urgent'),
+      completed: false,
       dismissed: false,
+      createdAt: new Date().toISOString(),
     };
 
     setReminders((prev) => [rem, ...prev]);
-    setNewReminderText('');
+    setNewReminderTitle('');
+    setNewReminderDesc('');
     setNewReminderTime('');
+    setNewReminderDate('Today');
     setIsAddingReminder(false);
   };
 
-  const handleDismissReminder = (id: string) => {
+  const handleToggleReminder = (id: string) => {
+    setReminders((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, completed: !r.completed } : r))
+    );
+  };
+
+  const handleDeleteReminder = (id: string) => {
     setReminders((prev) => prev.filter((r) => r.id !== id));
   };
+
 
   // Event Handlers
   const handleAddEvent = (e: React.FormEvent) => {
@@ -328,6 +356,17 @@ export const MyDayPage: React.FC = () => {
     if (taskFilter === 'completed') return t.completed;
     return t.category === taskFilter;
   });
+
+  // Filtered Reminders
+  const filteredReminders = reminders.filter((r) => {
+    if (reminderFilter === 'all') return true;
+    if (reminderFilter === 'today') return (r.date || 'Today').toLowerCase() === 'today' && !r.completed;
+    if (reminderFilter === 'upcoming') return (r.date || 'Today').toLowerCase() !== 'today' && !r.completed;
+    if (reminderFilter === 'urgent') return (r.priority === 'urgent' || r.urgent) && !r.completed;
+    if (reminderFilter === 'completed') return r.completed;
+    return true;
+  });
+
 
   return (
     <div className="page-container my-day-page-container">
@@ -838,103 +877,226 @@ export const MyDayPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column: Reminders & Daily Timeline */}
+        {/* Right Column: Reminders System & Schedule */}
         <div className="my-day-column reminders-column">
-          {/* Important Reminders Card */}
-          <div className="mira-card my-day-card">
-
-            <div className="mira-card-header">
+          {/* Complete Reminders System Card */}
+          <div className="mira-card my-day-card reminders-system-card">
+            <div className="mira-card-header reminders-card-header">
               <div className="mira-card-title">
-                <Bell size={17} style={{ color: '#ea580c' }} />
-                <span>Important Reminders</span>
-                <span className="reminders-count-pill">{activeRemindersCount}</span>
+                <Bell size={18} style={{ color: '#ea580c' }} />
+                <span>Reminders</span>
+                <span className="reminders-count-pill">{activeRemindersCount} active</span>
               </div>
 
               <button
-                className="mira-btn my-day-sub-btn"
+                className="mira-btn mira-btn-primary"
                 onClick={() => setIsAddingReminder(!isAddingReminder)}
               >
                 {isAddingReminder ? <X size={13} /> : <Plus size={13} />}
-                <span>{isAddingReminder ? 'Cancel' : 'Add'}</span>
+                <span>{isAddingReminder ? 'Cancel' : 'New Reminder'}</span>
               </button>
+            </div>
+
+            {/* Friendly MIRA Reminder Nudge Callout */}
+            <div className={`mira-reminder-nudge ${urgentRemindersCount > 0 ? 'urgent-nudge' : ''}`}>
+              <Sparkles size={14} style={{ color: urgentRemindersCount > 0 ? '#ea580c' : 'var(--brand-primary)', flexShrink: 0 }} />
+              <div className="nudge-text">
+                {urgentRemindersCount > 0
+                  ? `MIRA Nudge: You have ${urgentRemindersCount} urgent reminder(s) pending today! Let's stay on track! ⚡`
+                  : activeRemindersCount > 0
+                  ? `MIRA Nudge: ${activeRemindersCount} reminders scheduled. Paced and ready to go! ✨`
+                  : 'MIRA Nudge: All reminders cleared! You are completely on top of your schedule. 🎉'}
+              </div>
+            </div>
+
+            {/* Filter Tabs (All / Today / Upcoming / Urgent / Completed) */}
+            <div className="reminder-filter-tabs">
+              {(['all', 'today', 'upcoming', 'urgent', 'completed'] as const).map((tab) => (
+                <button
+                  key={tab}
+                  className={`reminder-tab-pill ${reminderFilter === tab ? 'active' : ''}`}
+                  onClick={() => setReminderFilter(tab)}
+                >
+                  {tab === 'all' && `All (${reminders.length})`}
+                  {tab === 'today' && `Today (${todayRemindersList.length})`}
+                  {tab === 'upcoming' && `Upcoming (${upcomingRemindersList.length})`}
+                  {tab === 'urgent' && `Urgent (${urgentRemindersCount})`}
+                  {tab === 'completed' && 'Done'}
+                </button>
+              ))}
             </div>
 
             {/* Inline Add Reminder Form */}
             {isAddingReminder && (
-              <form className="my-day-inline-form" onSubmit={handleAddReminder}>
+              <form className="my-day-inline-form reminder-add-form" onSubmit={handleAddReminder}>
+                <div className="form-header-title">Create New Reminder</div>
                 <input
                   type="text"
-                  placeholder="Reminder note..."
-                  value={newReminderText}
-                  onChange={(e) => setNewReminderText(e.target.value)}
+                  placeholder="Reminder title (e.g., Submit AI Challenge Prototype)..."
+                  value={newReminderTitle}
+                  onChange={(e) => setNewReminderTitle(e.target.value)}
                   autoFocus
                   required
                 />
+                <input
+                  type="text"
+                  placeholder="Optional details or notes..."
+                  value={newReminderDesc}
+                  onChange={(e) => setNewReminderDesc(e.target.value)}
+                />
                 <div className="inline-form-row">
+                  {/* Date selection */}
+                  <input
+                    type="text"
+                    placeholder="Date (e.g. Today, Tomorrow, Oct 5)"
+                    value={newReminderDate}
+                    onChange={(e) => setNewReminderDate(e.target.value)}
+                    style={{ flex: 1, minWidth: '100px' }}
+                  />
+
+                  {/* Time selection */}
                   <input
                     type="text"
                     placeholder="Time (e.g. 05:00 PM)"
                     value={newReminderTime}
                     onChange={(e) => setNewReminderTime(e.target.value)}
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, minWidth: '90px' }}
                   />
+
+                  {/* Priority selector */}
+                  <select
+                    value={newReminderPriority}
+                    onChange={(e) => setNewReminderPriority(e.target.value as ReminderPriority)}
+                    className="form-select-sm"
+                  >
+                    <option value="urgent">🚨 Urgent Priority</option>
+                    <option value="high">🔴 High Priority</option>
+                    <option value="medium">🟡 Medium Priority</option>
+                    <option value="low">🟢 Low Priority</option>
+                  </select>
+
+                  {/* Repeat selector */}
+                  <select
+                    value={newReminderRepeat}
+                    onChange={(e) => setNewReminderRepeat(e.target.value as ReminderRepeat)}
+                    className="form-select-sm"
+                  >
+                    <option value="once">Once (1x)</option>
+                    <option value="daily">🔁 Repeat Daily</option>
+                    <option value="weekly">🔁 Repeat Weekly</option>
+                  </select>
+
+                  {/* Tag */}
                   <input
                     type="text"
                     placeholder="Tag (e.g. Milestone)"
                     value={newReminderTag}
                     onChange={(e) => setNewReminderTag(e.target.value)}
-                    style={{ width: '110px' }}
+                    style={{ width: '100px' }}
                   />
+
                   <button type="submit" className="mira-btn mira-btn-primary">
                     <Check size={14} />
-                    <span>Save</span>
+                    <span>Save Reminder</span>
                   </button>
                 </div>
               </form>
             )}
 
-            {/* Reminders List */}
+            {/* Reminders Notification-Style List */}
             <div className="reminders-list">
-              {reminders.length > 0 ? (
-                reminders.map((rem) => (
-                  <div
-                    key={rem.id}
-                    className={`reminder-item-card ${rem.urgent ? 'urgent' : ''}`}
-                  >
-                    <div className="reminder-left">
-                      <div className="reminder-icon-box">
-                        <AlertCircle size={15} />
-                      </div>
-                      <div>
-                        <div className="reminder-text">{rem.text}</div>
-                        <div className="reminder-meta">
-                          <span className="reminder-tag">{rem.tag}</span>
-                          <span className="reminder-time">
-                            <Clock size={10} /> {rem.time}
-                          </span>
+              {filteredReminders.length > 0 ? (
+                filteredReminders.map((rem) => {
+                  const isUrgent = rem.priority === 'urgent' || rem.urgent;
+                  const isHigh = rem.priority === 'high';
+
+                  return (
+                    <div
+                      key={rem.id}
+                      className={`reminder-item-card ${isUrgent ? 'urgent' : ''} ${isHigh ? 'high-priority' : ''} ${rem.completed ? 'completed' : ''}`}
+                    >
+                      <div className="reminder-left">
+                        {/* Checkbox toggle */}
+                        <button
+                          className={`reminder-checkbox ${rem.completed ? 'checked' : ''}`}
+                          onClick={() => handleToggleReminder(rem.id)}
+                          title={rem.completed ? 'Mark pending' : 'Mark completed'}
+                        >
+                          {rem.completed ? <Check size={13} strokeWidth={3} /> : <Circle size={13} />}
+                        </button>
+
+                        <div className="reminder-body-content" onClick={() => handleToggleReminder(rem.id)}>
+                          <div className="reminder-title-row">
+                            <span className="reminder-title-text">{rem.title}</span>
+                            {isUrgent && (
+                              <span className="reminder-urgent-pill">
+                                <AlertTriangle size={11} /> Urgent
+                              </span>
+                            )}
+                          </div>
+
+                          {rem.text && (
+                            <p className="reminder-desc-text">{rem.text}</p>
+                          )}
+
+                          <div className="reminder-meta-badges">
+                            {rem.tag && (
+                              <span className="reminder-tag-pill">{rem.tag}</span>
+                            )}
+                            <span className={`reminder-priority-badge priority-${rem.priority || 'medium'}`}>
+                              {rem.priority === 'urgent' ? '🚨 Urgent' : rem.priority === 'high' ? '🔴 High' : rem.priority === 'low' ? '🟢 Low' : '🟡 Medium'}
+                            </span>
+                            {rem.repeat && rem.repeat !== 'once' && (
+                              <span className="reminder-repeat-badge">
+                                <Repeat size={10} /> {rem.repeat === 'daily' ? 'Daily' : 'Weekly'}
+                              </span>
+                            )}
+                            <span className="reminder-time-badge">
+                              <Calendar size={10} /> {rem.date || 'Today'}
+                            </span>
+                            {rem.time && (
+                              <span className="reminder-time-badge">
+                                <Clock size={10} /> {rem.time}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <button
-                      className="reminder-dismiss-btn"
-                      onClick={() => handleDismissReminder(rem.id)}
-                      title="Dismiss reminder"
-                    >
-                      <Check size={13} />
-                    </button>
-                  </div>
-                ))
+                      <div className="reminder-actions-right">
+                        <button
+                          className="reminder-delete-btn"
+                          onClick={() => handleDeleteReminder(rem.id)}
+                          title="Delete reminder"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
               ) : (
                 /* Empty State for Reminders */
-                <div className="my-day-empty-state">
-                  <Bell size={32} style={{ color: 'var(--text-muted)' }} />
-                  <h4>All clear! No reminders</h4>
-                  <p>You have no pending alerts or deadlines pinned for today.</p>
+                <div className="my-day-empty-state compact">
+                  <Bell size={28} style={{ color: 'var(--text-muted)' }} />
+                  <h4>No reminders in this view</h4>
+                  <p>
+                    {reminderFilter === 'all'
+                      ? 'You have no active reminders. Click "New Reminder" above to stay on schedule!'
+                      : `No reminders found matching "${reminderFilter}".`}
+                  </p>
+                  <button
+                    className="mira-btn my-day-sub-btn"
+                    onClick={() => setIsAddingReminder(true)}
+                  >
+                    <Plus size={13} />
+                    <span>Add Reminder</span>
+                  </button>
                 </div>
               )}
             </div>
           </div>
+
 
           {/* Upcoming Schedule & Events Timeline */}
           <div className="mira-card my-day-card" style={{ marginTop: 14 }}>
