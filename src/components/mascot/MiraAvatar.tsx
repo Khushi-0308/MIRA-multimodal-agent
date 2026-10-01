@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { AgentState, MiraThemeId, MascotAccessory } from '../../types/agent';
+import { AgentState, MiraThemeId, MascotAccessory, MascotAura } from '../../types/agent';
 
 interface MiraAvatarProps {
   state?: AgentState;
   size?: number;
   theme?: MiraThemeId;
   accessory?: MascotAccessory;
+  aura?: MascotAura;
   interactive?: boolean;
   showBadge?: boolean;
 }
@@ -15,6 +16,7 @@ export const MiraAvatar: React.FC<MiraAvatarProps> = ({
   size = 64,
   theme = 'liquid-rose',
   accessory = 'bunny-ears',
+  aura,
   interactive = true,
   showBadge = false,
 }) => {
@@ -137,6 +139,20 @@ export const MiraAvatar: React.FC<MiraAvatarProps> = ({
       onClick={handleClick}
       title={`MIRA: ${state} (Click to giggle!)`}
     >
+      {/* Mascot Aura Visual Glow Effects */}
+      {aura === 'neon-glow' && (
+        <div className="mascot-aura-neon" aria-hidden="true" />
+      )}
+      {aura === 'celestial-halo' && (
+        <div className="mascot-aura-celestial" aria-hidden="true" />
+      )}
+      {aura === 'pastel-mist' && (
+        <div className="mascot-aura-pastel" aria-hidden="true" />
+      )}
+      {aura === 'pulse-wave' && (
+        <div className="mascot-aura-pulse" aria-hidden="true" />
+      )}
+
       <svg
         viewBox="0 0 120 110"
         width={size}

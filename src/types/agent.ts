@@ -3,6 +3,8 @@
  * Phase 1: Foundation and UI Shell with Gen-Z Personalization System
  */
 
+export * from './world';
+
 export type AgentState =
   | 'idle'
   | 'listening'

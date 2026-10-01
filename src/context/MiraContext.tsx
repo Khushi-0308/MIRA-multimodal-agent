@@ -28,16 +28,33 @@ import {
   INITIAL_REASONING_STEPS,
 } from '../utils/mockData';
 import { AudioVisualizerController, speechRecognizer, speechSynthesizer } from '../utils/audio';
-import { getSavedTheme, saveTheme, getSavedAccessory, saveAccessory } from '../utils/themeConfig';
+import {
+  getSavedTheme,
+  saveTheme,
+  getSavedAccessory,
+  saveAccessory,
+  getSavedWorldSettings,
+  saveWorldSettings,
+  WORLD_PROFILES,
+} from '../utils/themeConfig';
+import { soundEffects } from '../utils/soundEffects';
+import { MiraWorldSettings } from '../types/world';
 
 interface MiraContextType {
-  // Theme & Personalization (Gen-Z Studio)
+  // Theme & Personalization (MIRA World)
   theme: MiraThemeId;
   setTheme: (theme: MiraThemeId) => void;
   mascotAccessory: MascotAccessory;
   setMascotAccessory: (acc: MascotAccessory) => void;
   isStudioOpen: boolean;
   setIsStudioOpen: (open: boolean) => void;
+
+  // MIRA World Customization Layer
+  worldSettings: import('../types/world').MiraWorldSettings;
+  setWorldSettings: (settings: import('../types/world').MiraWorldSettings) => void;
+  updateWorldSettings: (partial: Partial<import('../types/world').MiraWorldSettings>) => void;
+  resetWorldToThemeDefault: (themeId?: MiraThemeId) => void;
+  playWorldSound: (type: 'click' | 'toggle' | 'sparkle' | 'chime' | 'warp') => void;
 
   // Agent State (10 states)
   agentState: AgentState;
@@ -114,6 +131,7 @@ export const MiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Theme & Studio Personalization
   const [theme, setThemeState] = useState<MiraThemeId>(getSavedTheme);
   const [mascotAccessory, setMascotAccessoryState] = useState<MascotAccessory>(() => getSavedAccessory() as MascotAccessory);
+  const [worldSettings, setWorldSettingsState] = useState<MiraWorldSettings>(() => getSavedWorldSettings(getSavedTheme()));
   const [isStudioOpen, setIsStudioOpen] = useState<boolean>(false);
   const [devMode, setDevMode] = useState<boolean>(false);
   const [activeNavTab, setActiveNavTab] = useState<string>('Home');
@@ -174,21 +192,62 @@ export const MiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Workspace spatial layout view
   const [activeWorkspaceView, setActiveWorkspaceView] = useState<'spatial' | 'focus-vision' | 'focus-chat' | 'focus-context'>('spatial');
 
+  // World Settings Handlers
+  const setWorldSettings = (newSettings: MiraWorldSettings) => {
+    setWorldSettingsState(newSettings);
+    saveWorldSettings(newSettings);
+  };
+
+  const updateWorldSettings = (partial: Partial<MiraWorldSettings>) => {
+    setWorldSettingsState((prev) => {
+      const next = { ...prev, ...partial };
+      saveWorldSettings(next);
+      return next;
+    });
+  };
+
+  const resetWorldToThemeDefault = (themeId?: MiraThemeId) => {
+    const targetTheme = themeId || theme;
+    const defaults = WORLD_PROFILES[targetTheme]?.defaultSettings || WORLD_PROFILES['liquid-rose'].defaultSettings;
+    setWorldSettingsState(defaults);
+    saveWorldSettings(defaults);
+  };
+
+  const playWorldSound = (type: 'click' | 'toggle' | 'sparkle' | 'chime' | 'warp') => {
+    if (worldSettings.uiSoundEnabled && !worldSettings.reducedMotion) {
+      soundEffects.play(type);
+    }
+  };
+
   // Change theme and persist
   const setTheme = (newTheme: MiraThemeId) => {
     setThemeState(newTheme);
     saveTheme(newTheme);
+    const profile = WORLD_PROFILES[newTheme];
+    if (profile) {
+      updateWorldSettings({
+        atmosphere: profile.defaultSettings.atmosphere,
+        particle: profile.defaultSettings.particle,
+        mascotAura: profile.defaultSettings.mascotAura,
+      });
+    }
+    playWorldSound('warp');
   };
 
   const setMascotAccessory = (acc: MascotAccessory) => {
     setMascotAccessoryState(acc);
     saveAccessory(acc);
+    playWorldSound('toggle');
   };
 
-  // Ensure DOM attribute matches on mount
+  // Ensure DOM attributes match on mount and update
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
+    document.documentElement.setAttribute('data-atmosphere', worldSettings.atmosphere);
+    document.documentElement.setAttribute('data-interface-style', worldSettings.interfaceStyle);
+    document.documentElement.setAttribute('data-anim-intensity', worldSettings.intensity);
+    document.documentElement.setAttribute('data-reduced-motion', String(worldSettings.reducedMotion));
+  }, [theme, worldSettings]);
 
   const updateMetrics = (partial: Partial<AgentMetrics>) => {
     setMetrics((prev) => ({ ...prev, ...partial }));
@@ -544,6 +603,11 @@ export const MiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setMascotAccessory,
         isStudioOpen,
         setIsStudioOpen,
+        worldSettings,
+        setWorldSettings,
+        updateWorldSettings,
+        resetWorldToThemeDefault,
+        playWorldSound,
         devMode,
         setDevMode,
         activeNavTab,

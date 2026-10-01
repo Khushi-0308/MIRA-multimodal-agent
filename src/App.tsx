@@ -14,6 +14,7 @@ import { StudioPage } from './pages/StudioPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { DocumentPreviewModal } from './components/documents/DocumentPreviewModal';
 import { MiraStudioModal } from './components/studio/MiraStudioModal';
+import { CursorTrailEffect } from './components/effects/CursorTrailEffect';
 
 export const App: React.FC = () => {
   const { devMode, activeNavTab } = useMira();
@@ -64,9 +65,10 @@ export const App: React.FC = () => {
         </main>
       </div>
 
-      {/* Global Modals */}
+      {/* Global Modals & Interactive FX */}
       <DocumentPreviewModal />
       <MiraStudioModal />
+      <CursorTrailEffect />
     </div>
   );
 };
