@@ -52,7 +52,19 @@ export class MiraApiClient {
       typeof import.meta !== 'undefined'
         ? (import.meta as unknown as { env?: Record<string, string> }).env
         : undefined;
-    this.baseUrl = baseUrl || metaEnv?.VITE_API_URL || 'http://127.0.0.1:8000';
+
+    let defaultUrl = 'http://127.0.0.1:8000';
+    if (
+      typeof window !== 'undefined' &&
+      window.location &&
+      window.location.hostname &&
+      window.location.hostname !== 'localhost' &&
+      window.location.hostname !== '127.0.0.1'
+    ) {
+      defaultUrl = window.location.origin;
+    }
+
+    this.baseUrl = (baseUrl || metaEnv?.VITE_API_URL || defaultUrl).replace(/\/+$/, '');
   }
 
   public getBaseUrl(): string {

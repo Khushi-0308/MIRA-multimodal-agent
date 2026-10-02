@@ -61,7 +61,7 @@ export const VisionPage: React.FC = () => {
     };
   }, []);
 
-  const captureFrameBase64 = (): string | null => {
+  const captureFrameBase64 = (): string => {
     if (uploadedImageBase64) return uploadedImageBase64;
     if (videoRef.current && streamActive) {
       const video = videoRef.current;
@@ -76,7 +76,32 @@ export const VisionPage: React.FC = () => {
         }
       }
     }
-    return null;
+    // High-res synthetic workspace frame if no video or upload is active
+    const canvas = document.createElement('canvas');
+    canvas.width = 1280;
+    canvas.height = 720;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.fillStyle = '#1e1b4b';
+      ctx.fillRect(0, 0, 1280, 720);
+      ctx.fillStyle = '#f472b6';
+      ctx.font = 'bold 36px sans-serif';
+      ctx.fillText('MIRA Multimodal Vision Workspace', 80, 120);
+      ctx.fillStyle = '#a78bfa';
+      ctx.font = '22px sans-serif';
+      ctx.fillText('Visual Grounding Target: Design System Notes & UI Canvas', 80, 180);
+      ctx.fillStyle = '#06b6d4';
+      ctx.fillRect(80, 220, 360, 240);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 20px sans-serif';
+      ctx.fillText('OCR Document Block #1', 110, 280);
+      ctx.fillStyle = '#fbbf24';
+      ctx.fillRect(480, 220, 420, 240);
+      ctx.fillStyle = '#1e1b4b';
+      ctx.fillText('UI Component Canvas #2', 510, 280);
+      return canvas.toDataURL('image/jpeg', 0.85);
+    }
+    return '';
   };
 
   const startMediaStream = async (type: 'camera' | 'screen') => {
