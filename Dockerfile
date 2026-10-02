@@ -11,7 +11,7 @@ FROM node:20-alpine AS frontend-builder
 WORKDIR /app
 
 COPY package*.json tsconfig*.json vite.config.ts index.html ./
-RUN npm ci
+RUN npm install
 
 COPY src/ ./src/
 COPY public/ ./public/
@@ -35,7 +35,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy backend code
 COPY backend/ ./backend/
-COPY .env.example ./.env
+COPY .env.example* ./
 
 # Copy built frontend assets from Stage 1 into dist/
 COPY --from=frontend-builder /app/dist/ ./dist/
@@ -47,8 +47,8 @@ ENV ENVIRONMENT=production
 EXPOSE 8000
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:${PORT}/api/health || exit 1
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:${PORT:-8000}/api/health || exit 1
 
-# Start FastAPI application
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Start FastAPI application with dynamic PORT support for Render/Railway/Fly
+CMD ["sh", "-c", "uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
