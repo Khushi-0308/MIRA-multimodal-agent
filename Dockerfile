@@ -40,6 +40,7 @@ COPY .env.example* ./
 # Copy built frontend assets from Stage 1 into dist/
 COPY --from=frontend-builder /app/dist/ ./dist/
 
+ENV PYTHONPATH=/app
 ENV PORT=8000
 ENV HOST=0.0.0.0
 ENV ENVIRONMENT=production
