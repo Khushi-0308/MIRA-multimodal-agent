@@ -15,6 +15,8 @@ import { SettingsPage } from './pages/SettingsPage';
 import { DocumentPreviewModal } from './components/documents/DocumentPreviewModal';
 import { MiraStudioModal } from './components/studio/MiraStudioModal';
 import { CursorTrailEffect } from './components/effects/CursorTrailEffect';
+import { AuthModal } from './components/auth/AuthModal';
+import { MiraLoadingSplash } from './components/loading/MiraLoadingSplash';
 
 export const App: React.FC = () => {
   const { devMode, activeNavTab } = useMira();
@@ -65,7 +67,9 @@ export const App: React.FC = () => {
         </main>
       </div>
 
-      {/* Global Modals & Interactive FX */}
+      {/* Global Modals, Splash & Interactive FX */}
+      <MiraLoadingSplash />
+      <AuthModal />
       <DocumentPreviewModal />
       <MiraStudioModal />
       <CursorTrailEffect />

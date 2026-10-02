@@ -39,6 +39,25 @@ import {
 } from '../utils/themeConfig';
 import { soundEffects } from '../utils/soundEffects';
 import { MiraWorldSettings } from '../types/world';
+import { UserProfile } from '../types/auth';
+
+const getSavedUserProfile = (): UserProfile | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem('mira_user_profile');
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.warn('Failed to parse saved user profile:', e);
+  }
+  return {
+    id: 'user-default',
+    name: 'Explorer',
+    email: 'explorer@mira.ai',
+    avatar: '🌸',
+    role: 'member',
+    joinedAt: 'Today',
+  };
+};
 
 interface MiraContextType {
   // Theme & Personalization (MIRA World)
@@ -123,6 +142,15 @@ interface MiraContextType {
   // UI Spatial View Modes
   activeWorkspaceView: 'spatial' | 'focus-vision' | 'focus-chat' | 'focus-context';
   setActiveWorkspaceView: (view: 'spatial' | 'focus-vision' | 'focus-chat' | 'focus-context') => void;
+
+  // Authentication & User Profile
+  user: import('../types/auth').UserProfile | null;
+  isAuthenticated: boolean;
+  isAuthModalOpen: boolean;
+  setIsAuthModalOpen: (open: boolean) => void;
+  login: (profile: import('../types/auth').UserProfile) => void;
+  logout: () => void;
+  loginAsGuest: () => void;
 }
 
 const MiraContext = createContext<MiraContextType | undefined>(undefined);
@@ -135,6 +163,43 @@ export const MiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isStudioOpen, setIsStudioOpen] = useState<boolean>(false);
   const [devMode, setDevMode] = useState<boolean>(false);
   const [activeNavTab, setActiveNavTab] = useState<string>('Home');
+
+  // User Authentication
+  const [user, setUser] = useState<UserProfile | null>(getSavedUserProfile);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+
+  const login = (profile: UserProfile) => {
+    setUser(profile);
+    try {
+      localStorage.setItem('mira_user_profile', JSON.stringify(profile));
+    } catch (e) {
+      console.warn('Could not persist profile:', e);
+    }
+    setIsAuthModalOpen(false);
+    soundEffects.play('sparkle');
+  };
+
+  const logout = () => {
+    setUser(null);
+    try {
+      localStorage.removeItem('mira_user_profile');
+    } catch (e) {
+      console.warn('Could not clear profile:', e);
+    }
+    soundEffects.play('click');
+  };
+
+  const loginAsGuest = () => {
+    const guestUser: UserProfile = {
+      id: `guest-${Date.now().toString(36)}`,
+      name: 'Explorer Guest',
+      email: 'guest@mira.ai',
+      avatar: '✨',
+      role: 'guest',
+      joinedAt: 'Today',
+    };
+    login(guestUser);
+  };
 
   // Agent state initialized to 'idle' with friendly companion readiness
   const [agentState, setAgentState] = useState<AgentState>('idle');
@@ -655,6 +720,13 @@ export const MiraProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSelectedDocForPreview,
         activeWorkspaceView,
         setActiveWorkspaceView,
+        user,
+        isAuthenticated: Boolean(user),
+        isAuthModalOpen,
+        setIsAuthModalOpen,
+        login,
+        logout,
+        loginAsGuest,
       }}
     >
       {children}

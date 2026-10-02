@@ -2,6 +2,7 @@ import base64
 import os
 import time
 import uuid
+from pathlib import Path
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from fastapi import FastAPI, HTTPException, status, WebSocket, WebSocketDisconnect, UploadFile, File, Form
@@ -528,6 +529,13 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
 
     except WebSocketDisconnect:
         pass
+
+
+# Mount compiled frontend static assets if dist directory exists
+dist_dir = Path(__file__).resolve().parent.parent / "dist"
+if dist_dir.exists() and (dist_dir / "index.html").exists():
+    from fastapi.staticfiles import StaticFiles
+    app.mount("/", StaticFiles(directory=str(dist_dir), html=True), name="frontend_dist")
 
 
 if __name__ == "__main__":
