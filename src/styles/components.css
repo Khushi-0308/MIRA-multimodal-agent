@@ -7717,7 +7717,269 @@
   }
 }
 
+/* ==========================================================================
+   LIVING INTERACTIVE PRODUCT STYLES & MICRO-INTERACTIONS
+   ========================================================================== */
 
+/* 1. Satisfying Button & Control Physics */
+.mira-btn {
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease, background 0.2s ease, border-color 0.2s ease;
+  will-change: transform;
+}
 
+.mira-btn:hover {
+  transform: translateY(-1.5px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
 
+.mira-btn:active {
+  transform: translateY(1px) scale(0.985);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* 2. Interactive Card Elevations */
+.mira-card,
+.quick-action-card,
+.doc-workspace-card,
+.progress-ribbon-card,
+.my-day-card {
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.22s ease, border-color 0.2s ease;
+}
+
+.quick-action-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.09);
+  border-color: var(--border-card-hover, var(--brand-primary));
+}
+
+.quick-action-card:active {
+  transform: translateY(-0.5px) scale(0.99);
+}
+
+.doc-workspace-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.07);
+}
+
+/* 3. Physical Toggles & Switches */
+.mira-switch {
+  position: relative;
+  width: 36px;
+  height: 20px;
+  background: var(--bg-surface-secondary, #e2e8f0);
+  border-radius: 9999px;
+  border: 1.5px solid var(--border-subtle);
+  cursor: pointer;
+  padding: 2px;
+  transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.2s ease;
+}
+
+.mira-switch:hover {
+  box-shadow: 0 0 8px rgba(0, 0, 0, 0.08);
+}
+
+.mira-switch .switch-knob {
+  display: block;
+  width: 14px;
+  height: 14px;
+  background: #ffffff;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.mira-switch.active {
+  background: var(--brand-primary);
+  border-color: var(--brand-primary);
+}
+
+.mira-switch.active .switch-knob {
+  transform: translateX(16px);
+}
+
+/* 4. Topbar Interactive Agent Pipeline */
+.topbar-loop-tracker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--bg-surface-secondary);
+  padding: 4px 6px;
+  border-radius: 9999px;
+  border: 1px solid var(--border-subtle);
+}
+
+.topbar-loop-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  background: transparent;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+}
+
+.topbar-loop-pill.active {
+  background: var(--brand-primary);
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(244, 63, 94, 0.35);
+  transform: scale(1.03);
+}
+
+.topbar-loop-pill.completed {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+  font-weight: 600;
+}
+
+.topbar-loop-pill.error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.topbar-loop-pill.subtle {
+  opacity: 0.55;
+}
+
+.pipeline-pulse-dot {
+  width: 5px;
+  height: 5px;
+  background: #ffffff;
+  border-radius: 50%;
+  animation: pulse 1s infinite;
+}
+
+.pipeline-check-icon {
+  color: #10b981;
+}
+
+/* 5. Premium Collapsible Sidebar & Tooltips */
+.mira-sidebar {
+  transition: width 0.28s cubic-bezier(0.16, 1, 0.3, 1), padding 0.28s ease;
+}
+
+.sidebar-nav-item {
+  position: relative;
+  transition: transform 0.15s ease, background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+
+.sidebar-nav-item:hover {
+  transform: translateX(2px);
+}
+
+.mira-sidebar.collapsed .sidebar-nav-item:hover {
+  transform: scale(1.08);
+}
+
+.sidebar-nav-item.active {
+  background: var(--brand-primary-light, rgba(244, 63, 94, 0.12));
+  color: var(--brand-primary);
+  border-left: 3px solid var(--brand-primary);
+  font-weight: 800;
+}
+
+.sidebar-tooltip {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%) translateX(-4px);
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  z-index: 999;
+}
+
+.mira-sidebar.collapsed .sidebar-nav-item:hover .sidebar-tooltip {
+  opacity: 1;
+  transform: translateY(-50%) translateX(0);
+}
+
+/* 6. Human Empty States */
+.empty-state-human-card,
+.empty-chat-welcome-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 36px 24px;
+  background: var(--bg-surface-secondary);
+  border: 1.5px dashed var(--border-subtle);
+  border-radius: var(--radius-lg, 16px);
+  margin: 12px 0;
+}
+
+.empty-state-title,
+.empty-chat-title {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 10px 0 6px 0;
+}
+
+.empty-state-desc,
+.empty-chat-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  max-width: 440px;
+  line-height: 1.5;
+  margin: 0 0 16px 0;
+}
+
+.empty-chat-starter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 6px;
+}
+
+.chat-starter-btn {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: 9999px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.chat-starter-btn:hover {
+  transform: translateY(-1.5px);
+  border-color: var(--brand-primary);
+  background: var(--brand-primary-light, rgba(244, 63, 94, 0.08));
+}
+
+.chat-starter-btn:active {
+  transform: translateY(0.5px);
+}
+
+/* 7. Smooth Page Viewport Animations */
+.page-container {
+  animation: pageFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes pageFadeIn {
+  0% {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 

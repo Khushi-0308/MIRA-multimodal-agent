@@ -304,12 +304,12 @@ export const VisionPage: React.FC = () => {
             ) : (
               <div className="vision-empty-canvas" onClick={() => fileInputRef.current?.click()}>
                 <div className="vision-canvas-inner">
-                  <div className="vision-dashed-icon-circle">
-                    <Camera size={26} style={{ color: 'var(--brand-primary)' }} />
+                  <div style={{ marginBottom: 14 }}>
+                    <MiraAvatar size={68} state="idle" theme={theme} accessory={mascotAccessory} interactive={false} />
                   </div>
-                  <h3 className="empty-canvas-title">Visual feed is ready to connect</h3>
+                  <h3 className="empty-canvas-title">No vision input yet</h3>
                   <p className="empty-canvas-sub">
-                    Share your screen, turn on camera, or upload an image to let MIRA perceive in real-time.
+                    Show me something! Share your screen, turn on camera, or upload an image to let MIRA perceive in real-time.
                   </p>
                   <div className="canvas-quick-pill-row">
                     <button

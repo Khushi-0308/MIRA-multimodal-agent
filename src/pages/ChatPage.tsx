@@ -367,6 +367,29 @@ export const ChatPage: React.FC = () => {
           )}
 
           <div className="chat-messages-viewport" ref={scrollRef}>
+            {chatMessages.length === 0 && (
+              <div className="empty-chat-welcome-state">
+                <div style={{ marginBottom: 14 }}>
+                  <MiraAvatar size={74} state={agentState} theme={theme} accessory={mascotAccessory} interactive={true} />
+                </div>
+                <h3 className="empty-chat-title">Hi, I'm MIRA ✨ What's on your mind?</h3>
+                <p className="empty-chat-desc">
+                  Ask me anything, speak using your microphone, or attach files. I'm connected directly to Gemini multimodal intelligence.
+                </p>
+                <div className="empty-chat-starter-chips">
+                  <button className="chat-starter-btn" onClick={() => handleSendMessage("Give me a quick briefing of what you can do!")}>
+                    ✨ "What can you do?"
+                  </button>
+                  <button className="chat-starter-btn" onClick={() => handleSendMessage("How does ContextCore multimodal grounding work?")}>
+                    🧠 "How does ContextCore work?"
+                  </button>
+                  <button className="chat-starter-btn" onClick={() => handleSendMessage("Plan my schedule and suggest top priorities for today.")}>
+                    🗓️ "Plan my day"
+                  </button>
+                </div>
+              </div>
+            )}
+
             {chatMessages.map((msg) => (
               <MessageItem key={msg.id} message={msg} />
             ))}

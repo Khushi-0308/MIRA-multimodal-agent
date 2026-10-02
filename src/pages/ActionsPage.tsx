@@ -422,11 +422,16 @@ export const ActionsPage: React.FC = () => {
 
           ) : (
             <div className="mira-card empty-action-card">
-              <CheckCircle2 size={32} style={{ color: 'var(--brand-mint)' }} />
-              <h3>No Action Pending</h3>
-              <p>MIRA is standing by. When a complex tool call is planned, it will appear here for your review.</p>
+              <div style={{ marginBottom: 12 }}>
+                <MiraAvatar size={62} state="idle" theme={theme} accessory={mascotAccessory} interactive={false} />
+              </div>
+              <h3 className="empty-action-title">No actions waiting for review</h3>
+              <p className="empty-action-desc">
+                MIRA safety gates are active. When a tool call requires confirmation, it will appear here for safe approval.
+              </p>
               <button className="mira-btn mira-btn-primary" onClick={handleResetDemo}>
-                Load Demo Action
+                <Zap size={14} />
+                <span>Simulate Safety Approval Action</span>
               </button>
             </div>
           )}

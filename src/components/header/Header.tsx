@@ -12,6 +12,8 @@ import {
   Bell,
   LucideIcon,
   Code2,
+  Check,
+  AlertCircle,
 } from 'lucide-react';
 
 const LOOP_STAGES: Array<{ id: LoopStage; label: string; icon: LucideIcon }> = [
@@ -26,6 +28,7 @@ const LOOP_STAGES: Array<{ id: LoopStage; label: string; icon: LucideIcon }> = [
 export const Header: React.FC = () => {
   const {
     loopStage,
+    agentState,
     setActiveNavTab,
     activeNavTab,
     devMode,
@@ -33,20 +36,93 @@ export const Header: React.FC = () => {
     metrics,
   } = useMira();
 
+  // Derive dynamic pipeline status for each stage based on live agent state
+  const getStageStatus = (_stageId: LoopStage, index: number) => {
+    if (agentState === 'completed') {
+      return 'completed';
+    }
+
+    if (agentState === 'error') {
+      let errIndex = 0;
+      if (loopStage === 'SEES') errIndex = 1;
+      else if (loopStage === 'UNDERSTANDS') errIndex = 2;
+      else if (loopStage === 'REASONS') errIndex = 3;
+      else if (loopStage === 'ACTS') errIndex = 4;
+      else if (loopStage === 'VERIFIES') errIndex = 5;
+
+      if (index === errIndex) return 'error';
+      if (index < errIndex) return 'completed';
+      return 'subtle';
+    }
+
+    let activeIndex = -1;
+    switch (agentState) {
+      case 'listening':
+        activeIndex = 0; // HEARS
+        break;
+      case 'observing':
+        activeIndex = 1; // SEES
+        break;
+      case 'thinking':
+      case 'processing':
+      case 'planning':
+        activeIndex = 2; // UNDERSTANDS
+        break;
+      case 'speaking':
+        activeIndex = 3; // REASONS
+        break;
+      case 'waiting for approval':
+      case 'executing':
+        activeIndex = 4; // ACTS
+        break;
+      case 'verifying':
+        activeIndex = 5; // VERIFIES
+        break;
+      default:
+        // Idle or resting
+        activeIndex = -1;
+        break;
+    }
+
+    if (activeIndex === -1) {
+      return 'idle';
+    }
+
+    if (index === activeIndex) {
+      return 'active';
+    }
+    if (index < activeIndex) {
+      return 'completed';
+    }
+    return 'subtle';
+  };
+
   return (
     <header className="mira-topbar">
       {/* Multimodal 6-Step Loop Tracker */}
-      <div className="topbar-loop-tracker">
-        {LOOP_STAGES.map((step) => {
+      <div className="topbar-loop-tracker" role="navigation" aria-label="Agent Multimodal Pipeline">
+        {LOOP_STAGES.map((step, idx) => {
           const Icon = step.icon;
-          const isActive = loopStage === step.id;
+          const status = getStageStatus(step.id, idx);
+          const isAct = status === 'active';
+          const isDone = status === 'completed';
+          const isErr = status === 'error';
+
           return (
             <div
               key={step.id}
-              className={`topbar-loop-pill ${isActive ? 'active' : ''}`}
+              className={`topbar-loop-pill ${isAct ? 'active' : ''} ${isDone ? 'completed' : ''} ${isErr ? 'error' : ''} ${status === 'subtle' ? 'subtle' : ''}`}
+              title={`${step.label}: ${status.toUpperCase()}`}
             >
-              <Icon size={14} />
+              {isDone ? (
+                <Check size={13} strokeWidth={2.8} className="pipeline-check-icon" />
+              ) : isErr ? (
+                <AlertCircle size={13} className="pipeline-err-icon" />
+              ) : (
+                <Icon size={14} className={isAct ? 'pipeline-active-icon' : ''} />
+              )}
               <span>{step.label}</span>
+              {isAct && <span className="pipeline-pulse-dot" />}
             </div>
           );
         })}

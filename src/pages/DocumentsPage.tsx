@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useMira } from '../context/MiraContext';
+import { MiraAvatar } from '../components/mascot/MiraAvatar';
 import { apiClient, wsClient } from '../services';
 import {
   FileText,
@@ -21,6 +22,8 @@ export const DocumentsPage: React.FC = () => {
     removeDocument,
     setSelectedDocForPreview,
     contextCore,
+    theme,
+    mascotAccessory,
   } = useMira();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -280,52 +283,74 @@ export const DocumentsPage: React.FC = () => {
 
           {/* Documents Cards Grid */}
           <div className="docs-cards-grid">
-            {filteredDocs.map((doc) => (
-              <div key={doc.id} className="doc-workspace-card">
-                <div className="doc-card-top">
-                  {getDocIcon(doc.name)}
-                  <div className="doc-card-name-group">
-                    <h4 className="doc-card-name" title={doc.name}>
-                      {doc.name}
-                    </h4>
-                    <span className="doc-card-meta">
-                      {Math.round(doc.size / 1024)} KB • {doc.uploadedAt}
+            {filteredDocs.length > 0 ? (
+              filteredDocs.map((doc) => (
+                <div key={doc.id} className="doc-workspace-card">
+                  <div className="doc-card-top">
+                    {getDocIcon(doc.name)}
+                    <div className="doc-card-name-group">
+                      <h4 className="doc-card-name" title={doc.name}>
+                        {doc.name}
+                      </h4>
+                      <span className="doc-card-meta">
+                        {Math.round(doc.size / 1024)} KB • {doc.uploadedAt}
+                      </span>
+                    </div>
+                  </div>
+
+                  <p className="doc-card-summary">
+                    {doc.summary || 'Indexed in ContextCore semantic store.'}
+                  </p>
+
+                  <div className="doc-card-tags">
+                    <span className="doc-tag token-tag">
+                      {doc.tokenCount} tokens
+                    </span>
+                    <span className="doc-tag status-tag">
+                      <CheckCircle2 size={11} /> Ready
                     </span>
                   </div>
-                </div>
 
-                <p className="doc-card-summary">
-                  {doc.summary || 'Indexed in ContextCore semantic store.'}
+                  <div className="doc-card-actions">
+                    <button
+                      className="doc-action-btn"
+                      onClick={() => setSelectedDocForPreview(doc)}
+                      title="Preview Document"
+                    >
+                      <Eye size={13} />
+                      <span>Preview</span>
+                    </button>
+                    <button
+                      className="doc-action-btn delete"
+                      onClick={() => handleRemoveDocument(doc.id, doc.name)}
+                      title="Remove from ContextCore"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div className="empty-state-human-card" style={{ gridColumn: '1 / -1' }}>
+                <div className="empty-state-avatar">
+                  <MiraAvatar size={58} state="idle" theme={theme} accessory={mascotAccessory} interactive={false} />
+                </div>
+                <h3 className="empty-state-title">
+                  {searchQuery ? `No documents matching "${searchQuery}"` : 'No documents yet'}
+                </h3>
+                <p className="empty-state-desc">
+                  {searchQuery
+                    ? 'Try adjusting your search keywords to find indexed documents.'
+                    : "Drop a PDF, JSON, or note here and I'll help you understand and index it."}
                 </p>
-
-                <div className="doc-card-tags">
-                  <span className="doc-tag token-tag">
-                    {doc.tokenCount} tokens
-                  </span>
-                  <span className="doc-tag status-tag">
-                    <CheckCircle2 size={11} /> Ready
-                  </span>
-                </div>
-
-                <div className="doc-card-actions">
-                  <button
-                    className="doc-action-btn"
-                    onClick={() => setSelectedDocForPreview(doc)}
-                    title="Preview Document"
-                  >
-                    <Eye size={13} />
-                    <span>Preview</span>
+                {!searchQuery && (
+                  <button className="mira-btn mira-btn-primary" onClick={() => fileInputRef.current?.click()}>
+                    <Upload size={14} />
+                    <span>Upload your first document</span>
                   </button>
-                  <button
-                    className="doc-action-btn delete"
-                    onClick={() => handleRemoveDocument(doc.id, doc.name)}
-                    title="Remove from ContextCore"
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                </div>
+                )}
               </div>
-            ))}
+            )}
           </div>
         </div>
 
