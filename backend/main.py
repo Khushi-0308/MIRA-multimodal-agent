@@ -91,6 +91,11 @@ def build_grounded_prompt(user_message: str, session_id: str) -> str:
 
 @app.get("/")
 def read_root():
+    dist_dir = Path(__file__).resolve().parent.parent / "dist"
+    index_file = dist_dir / "index.html"
+    if index_file.exists():
+        from fastapi.responses import FileResponse
+        return FileResponse(index_file)
     return {
         "message": "Welcome to MIRA Multimodal Agent Backend API",
         "docs_url": "/docs",
@@ -531,11 +536,27 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
         pass
 
 
-# Mount compiled frontend static assets if dist directory exists
+# Mount compiled frontend static assets and provide client-side SPA fallback
 dist_dir = Path(__file__).resolve().parent.parent / "dist"
-if dist_dir.exists() and (dist_dir / "index.html").exists():
+if dist_dir.exists():
     from fastapi.staticfiles import StaticFiles
-    app.mount("/", StaticFiles(directory=str(dist_dir), html=True), name="frontend_dist")
+    from fastapi.responses import FileResponse
+
+    assets_dir = dist_dir / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="frontend_assets")
+
+    @app.get("/{full_path:path}")
+    async def serve_spa(full_path: str):
+        if full_path.startswith("api") or full_path.startswith("ws") or full_path.startswith("docs") or full_path.startswith("openapi.json"):
+            raise HTTPException(status_code=404, detail="Not Found")
+        target_file = dist_dir / full_path
+        if target_file.is_file():
+            return FileResponse(str(target_file))
+        index_file = dist_dir / "index.html"
+        if index_file.exists():
+            return FileResponse(str(index_file))
+        return {"message": "MIRA Frontend active"}
 
 
 if __name__ == "__main__":
@@ -544,3 +565,4 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
     host = os.getenv("HOST", "127.0.0.1")
     uvicorn.run("backend.main:app", host=host, port=port, reload=True)
+
