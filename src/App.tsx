@@ -12,6 +12,7 @@ import { DocumentsPage } from './pages/DocumentsPage';
 import { ActionsPage } from './pages/ActionsPage';
 import { StudioPage } from './pages/StudioPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { LoginPage } from './pages/LoginPage';
 import { DocumentPreviewModal } from './components/documents/DocumentPreviewModal';
 import { MiraStudioModal } from './components/studio/MiraStudioModal';
 import { CursorTrailEffect } from './components/effects/CursorTrailEffect';
@@ -39,6 +40,9 @@ export const App: React.FC = () => {
         return <StudioPage />;
       case 'Settings':
         return <SettingsPage />;
+      case 'Account':
+      case 'Login':
+        return <LoginPage />;
       default:
         return <HomePage />;
     }

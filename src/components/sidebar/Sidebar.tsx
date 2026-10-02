@@ -14,6 +14,7 @@ import {
   Code2,
   ChevronLeft,
   ChevronRight,
+  User,
 } from 'lucide-react';
 
 interface NavItem {
@@ -31,6 +32,7 @@ const NAV_ITEMS: NavItem[] = [
   { id: 'Documents', label: 'Documents', icon: FileText },
   { id: 'Actions', label: 'Actions', icon: Zap },
   { id: 'Studio', label: 'MIRA Studio', icon: Sparkles, badge: '5 Themes' },
+  { id: 'Account', label: 'Account & Login', icon: User, badge: 'Accounts' },
   { id: 'Settings', label: 'Settings', icon: Settings },
 ];
 
@@ -44,6 +46,7 @@ export const Sidebar: React.FC = () => {
     mascotAccessory,
     devMode,
     setDevMode,
+    user,
   } = useMira();
 
   const [isCollapsed, setIsCollapsed] = useState<boolean>(() => {
@@ -104,17 +107,25 @@ export const Sidebar: React.FC = () => {
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = activeNavTab === item.id;
+          const isAccountItem = item.id === 'Account';
+          const displayLabel = isAccountItem && user ? user.name : item.label;
+          const displayBadge = isAccountItem && user ? user.role : item.badge;
+
           return (
             <button
               key={item.id}
               className={`sidebar-nav-item ${isActive ? 'active' : ''}`}
               onClick={() => setActiveNavTab(item.id)}
-              title={isCollapsed ? undefined : item.label}
+              title={isCollapsed ? undefined : displayLabel}
             >
-              <Icon size={isCollapsed ? 20 : 18} />
-              {!isCollapsed && <span>{item.label}</span>}
-              {!isCollapsed && item.badge && <span className="sidebar-badge-new">{item.badge}</span>}
-              {isCollapsed && <span className="sidebar-tooltip">{item.label}</span>}
+              {isAccountItem && user ? (
+                <span style={{ fontSize: isCollapsed ? '16px' : '15px', lineHeight: 1 }}>{user.avatar}</span>
+              ) : (
+                <Icon size={isCollapsed ? 20 : 18} />
+              )}
+              {!isCollapsed && <span>{displayLabel}</span>}
+              {!isCollapsed && displayBadge && <span className="sidebar-badge-new">{displayBadge}</span>}
+              {isCollapsed && <span className="sidebar-tooltip">{displayLabel}</span>}
             </button>
           );
         })}

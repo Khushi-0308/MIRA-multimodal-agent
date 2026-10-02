@@ -11,5 +11,17 @@ export interface UserProfile {
   avatar: string;
   role: 'member' | 'guest' | 'admin' | 'enterprise';
   joinedAt: string;
+  preferredTheme?: 'liquid-rose' | 'midnight' | 'glitter' | 'bold' | 'edge';
+  preferredAccessory?: 'bunny-ears' | 'cyber-headphones' | 'star-clip' | 'hologram-visor' | 'none';
+  bio?: string;
+  primaryGoal?: string;
+  savedPassword?: string;
 }
+
+export interface RegisteredAccount {
+  id: string;
+  profile: UserProfile;
+  lastActive: string;
+}
+
 

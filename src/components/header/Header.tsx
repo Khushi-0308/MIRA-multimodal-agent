@@ -35,7 +35,6 @@ export const Header: React.FC = () => {
     setDevMode,
     metrics,
     user,
-    setIsAuthModalOpen,
   } = useMira();
 
   // Derive dynamic pipeline status for each stage based on live agent state
@@ -173,13 +172,17 @@ export const Header: React.FC = () => {
 
         {/* User Profile Chip */}
         <button
-          className="topbar-user-avatar-btn"
-          onClick={() => setIsAuthModalOpen(true)}
+          className={`topbar-user-avatar-btn ${activeNavTab === 'Account' ? 'active-tab' : ''}`}
+          onClick={() => setActiveNavTab('Account')}
           title={user ? `Signed in as ${user.name} (${user.email}) - Click to manage account` : 'Sign In / Account'}
           aria-label="Account Profile"
         >
           <span className="user-avatar-emoji">{user ? user.avatar : '👤'}</span>
-          {user && <span className="topbar-user-name">{user.name}</span>}
+          {user ? (
+            <span className="topbar-user-name">{user.name}</span>
+          ) : (
+            <span className="topbar-user-name" style={{ opacity: 0.85 }}>Sign In</span>
+          )}
         </button>
       </div>
     </header>
