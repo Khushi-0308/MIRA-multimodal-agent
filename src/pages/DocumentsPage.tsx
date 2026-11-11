@@ -2,6 +2,7 @@ import React, { useRef, useState, useEffect } from 'react';
 import { useMira } from '../context/MiraContext';
 import { MiraAvatar } from '../components/mascot/MiraAvatar';
 import { apiClient, wsClient } from '../services';
+import { getSharedSessionId } from '../utils/sessionHelper';
 import {
   FileText,
   Upload,
@@ -29,7 +30,7 @@ export const DocumentsPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const sessionIdRef = useRef<string>(`mira-docs-${Date.now().toString(36)}`);
+  const sessionIdRef = useRef<string>(getSharedSessionId());
 
   const totalTokens = documents.reduce((sum, d) => sum + (d.tokenCount || 0), 0);
 
@@ -176,7 +177,6 @@ export const DocumentsPage: React.FC = () => {
     doc.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-
   const getDocIcon = (name: string) => {
     if (name.endsWith('.pdf')) {
       return (
@@ -265,7 +265,6 @@ export const DocumentsPage: React.FC = () => {
               Supports PDF, DOCX, Markdown, TXT, JSON, and images. Automatically parsed and anchored for ContextCore RAG grounding.
             </p>
           </div>
-
 
           {/* Search & Filter Bar */}
           <div className="docs-search-filter-bar">

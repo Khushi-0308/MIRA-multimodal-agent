@@ -5,6 +5,8 @@ import { MiraAvatar } from '../components/mascot/MiraAvatar';
 import { apiClient, wsClient } from '../services';
 import { MultimodalMessage } from '../types/multimodal';
 import { LoopStage } from '../types/agent';
+import { getSharedSessionId } from '../utils/sessionHelper';
+import { getMyDayContext } from '../utils/myDayContextHelper';
 import {
   Sparkles,
   Volume2,
@@ -22,13 +24,16 @@ import {
   Play,
   Layers,
   Activity,
+  Calendar,
 } from 'lucide-react';
 
 const PROMPT_SUGGESTIONS = [
-  'What do you see on my screen right now?',
-  'Summarize the uploaded architectural document',
-  'Check system pods and verify cluster health',
-  'Explain how ContextCore integrates audio and vision',
+  "What is on my schedule and tasks for today?",
+  "What tasks are still pending or high priority?",
+  "Do I have any urgent reminders or meetings?",
+  "Summarize all my uploaded documents using RAG",
+  "What do you see on my screen right now?",
+  "Explain how ContextCore integrates audio and vision",
 ];
 
 const COGNITIVE_STAGES: Array<{ id: LoopStage; label: string; icon: typeof Mic }> = [
@@ -83,7 +88,8 @@ export const ChatPage: React.FC = () => {
   const [inputText, setInputText] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const sessionIdRef = useRef<string>(`mira-chat-${Date.now().toString(36)}`);
+  const sessionIdRef = useRef<string>(getSharedSessionId());
+  const [myDaySummary, setMyDaySummary] = useState(() => getMyDayContext());
 
   // Connect to Phase 3 WebSocket on mount
   useEffect(() => {
@@ -91,6 +97,9 @@ export const ChatPage: React.FC = () => {
     wsClient.connect(sessionId).catch((err) => {
       console.warn('[ChatPage] WebSocket initial connect:', err);
     });
+
+    // Refresh live My Day context on mount
+    setMyDaySummary(getMyDayContext());
 
     return () => {
       wsClient.disconnect();
@@ -132,6 +141,19 @@ export const ChatPage: React.FC = () => {
     setAgentState('thinking');
     setLoopStage('UNDERSTANDS');
 
+    // Retrieve live My Day planner state and active client documents
+    const currentMyDay = getMyDayContext();
+    setMyDaySummary(currentMyDay);
+
+    const clientDocs = documents.map((d) => ({
+      id: d.id,
+      name: d.name,
+      filename: d.name,
+      summary: d.summary || '',
+      tokenCount: d.tokenCount || 100,
+      full_text: (d as unknown as { content?: string }).content || d.summary || '',
+    }));
+
     try {
       let replyText = '';
 
@@ -151,10 +173,18 @@ export const ChatPage: React.FC = () => {
           });
         });
 
-        wsClient.sendChatMessage(trimmed);
+        wsClient.sendChatMessage(trimmed, {
+          my_day_context: currentMyDay,
+          documents_context: clientDocs,
+        });
         replyText = await replyPromise;
       } else {
-        const res = await apiClient.sendChatMessage(trimmed, sessionIdRef.current);
+        const res = await apiClient.sendChatMessage(
+          trimmed,
+          sessionIdRef.current,
+          currentMyDay as unknown as Record<string, unknown>,
+          clientDocs as unknown as Array<Record<string, unknown>>
+        );
         replyText = res.response;
       }
 
@@ -168,7 +198,7 @@ export const ChatPage: React.FC = () => {
         text: replyText,
         agentTrace: {
           stage: 'UNDERSTANDS',
-          thought: 'Generated in real-time by Gemini API with ContextCore working memory.',
+          thought: 'Grounding reply with live My Day schedule, ContextCore anchors, and document RAG.',
         },
       };
 
@@ -221,7 +251,8 @@ export const ChatPage: React.FC = () => {
   const hasActivePerception =
     audioStream.isListening ||
     (visionFeed.isActive && (visionFeed.sourceType === 'screen' || visionFeed.sourceType === 'camera')) ||
-    documents.length > 0;
+    documents.length > 0 ||
+    myDaySummary.stats.total > 0;
 
   return (
     <div className="page-container chat-page-container">
@@ -243,9 +274,26 @@ export const ChatPage: React.FC = () => {
               <span className={`status-pill ${audioStream.isListening ? 'listening' : 'ready'}`}>
                 {audioStream.isListening ? 'Listening Live' : 'Voice & Text Ready'}
               </span>
+              <span
+                className="status-pill ready"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  background: 'rgba(56, 189, 248, 0.12)',
+                  color: 'var(--brand-primary)',
+                  border: '1px solid rgba(56, 189, 248, 0.3)',
+                  fontSize: '11px',
+                  fontWeight: 600,
+                }}
+                title="MIRA is actively connected to your My Day schedule and Document RAG"
+              >
+                <Calendar size={12} />
+                <span>My Day & Docs RAG Connected</span>
+              </span>
             </div>
             <p className="chat-header-sub">
-              Active Stage: <strong>{loopStage}</strong> • Powered by ContextCore Real-time Ingestion
+              Active Stage: <strong>{loopStage}</strong> • Powered by ContextCore & My Day Intelligence
             </p>
           </div>
         </div>
@@ -374,17 +422,20 @@ export const ChatPage: React.FC = () => {
                 </div>
                 <h3 className="empty-chat-title">Hi, I'm MIRA ✨ What's on your mind?</h3>
                 <p className="empty-chat-desc">
-                  Ask me anything, speak using your microphone, or attach files. I'm connected directly to Gemini multimodal intelligence.
+                  Ask me anything about your schedule, uploaded documents, or speak with me in real-time. I have live access to your My Day dashboard and documents!
                 </p>
                 <div className="empty-chat-starter-chips">
+                  <button className="chat-starter-btn" onClick={() => handleSendMessage("What is on my schedule and tasks for today?")}>
+                    📅 "What's on my schedule today?"
+                  </button>
+                  <button className="chat-starter-btn" onClick={() => handleSendMessage("What tasks are pending or high priority?")}>
+                    ⏳ "Pending tasks & priorities"
+                  </button>
+                  <button className="chat-starter-btn" onClick={() => handleSendMessage("Summarize all my uploaded documents using RAG")}>
+                    📑 "Summarize uploaded documents"
+                  </button>
                   <button className="chat-starter-btn" onClick={() => handleSendMessage("Give me a quick briefing of what you can do!")}>
                     ✨ "What can you do?"
-                  </button>
-                  <button className="chat-starter-btn" onClick={() => handleSendMessage("How does ContextCore multimodal grounding work?")}>
-                    🧠 "How does ContextCore work?"
-                  </button>
-                  <button className="chat-starter-btn" onClick={() => handleSendMessage("Plan my schedule and suggest top priorities for today.")}>
-                    🗓️ "Plan my day"
                   </button>
                 </div>
               </div>
@@ -401,7 +452,7 @@ export const ChatPage: React.FC = () => {
                   <MiraAvatar size={34} state="thinking" theme={theme} accessory={mascotAccessory} />
                   <div className="thinking-text-group">
                     <span className="thinking-label">MIRA is thinking... ✨</span>
-                    <span className="thinking-sub">Synthesizing audio and ContextCore anchors</span>
+                    <span className="thinking-sub">Accessing My Day planner & Document RAG</span>
                   </div>
                 </div>
               </div>
@@ -420,12 +471,23 @@ export const ChatPage: React.FC = () => {
             )}
           </div>
 
-          {/* Active Perception Chips: Only shown when corresponding modality is active */}
+          {/* Active Perception Chips: Shown when corresponding modality or planner is active */}
           {hasActivePerception && (
             <div className="active-perception-bar">
               <span className="perception-label">
                 <Activity size={12} />
-                <span>Active Perception:</span>
+                <span>Active Grounding:</span>
+              </span>
+              <span
+                className="perception-chip"
+                style={{
+                  background: 'rgba(56, 189, 248, 0.12)',
+                  color: 'var(--brand-primary)',
+                  border: '1px solid rgba(56, 189, 248, 0.25)',
+                }}
+              >
+                <Calendar size={11} />
+                <span>My Day ({myDaySummary.stats.completed}/{myDaySummary.stats.total} Tasks • {myDaySummary.stats.percentage}%)</span>
               </span>
               {audioStream.isListening && (
                 <span className="perception-chip voice-active">
@@ -442,7 +504,7 @@ export const ChatPage: React.FC = () => {
               {documents.length > 0 && (
                 <span className="perception-chip docs-active">
                   <FileText size={11} />
-                  <span>{documents.length} Doc{documents.length > 1 ? 's' : ''}</span>
+                  <span>{documents.length} Doc{documents.length > 1 ? 's' : ''} (RAG Ready)</span>
                 </span>
               )}
             </div>
@@ -514,7 +576,7 @@ export const ChatPage: React.FC = () => {
                 <input
                   type="text"
                   className="input-field"
-                  placeholder="Speak or type a message to MIRA..."
+                  placeholder="Ask about your schedule, documents, or anything..."
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   onKeyDown={handleKeyDown}
@@ -598,11 +660,55 @@ export const ChatPage: React.FC = () => {
                 {contextCore.activeAnchors.length} tracked
               </strong>
             </div>
+
+            {/* Live My Day Mini-Progress widget */}
+            <div
+              style={{
+                marginTop: 12,
+                padding: '10px 12px',
+                borderRadius: '8px',
+                background: 'rgba(56, 189, 248, 0.08)',
+                border: '1px solid rgba(56, 189, 248, 0.2)',
+                fontSize: '12px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                <span style={{ fontWeight: 700, color: 'var(--brand-primary)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <Calendar size={12} />
+                  <span>My Day Progress</span>
+                </span>
+                <span style={{ fontWeight: 800, color: 'var(--brand-primary)' }}>
+                  {myDaySummary.stats.percentage}%
+                </span>
+              </div>
+              <div
+                style={{
+                  height: 6,
+                  width: '100%',
+                  background: 'var(--border-subtle)',
+                  borderRadius: 3,
+                  overflow: 'hidden',
+                  marginBottom: 6,
+                }}
+              >
+                <div
+                  style={{
+                    height: '100%',
+                    width: `${myDaySummary.stats.percentage}%`,
+                    background: 'var(--brand-primary)',
+                    borderRadius: 3,
+                    transition: 'width 0.3s ease',
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)', fontSize: '11px' }}>
+                <span>{myDaySummary.stats.completed} done</span>
+                <span>{myDaySummary.stats.pending} pending</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
 };
-
-

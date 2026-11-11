@@ -9,6 +9,12 @@ class ChatRequest(BaseModel):
     session_id: Optional[str] = Field(
         default=None, description="Active session ID, auto-generated if omitted"
     )
+    my_day_context: Optional[Dict[str, Any]] = Field(
+        default=None, description="Active My Day schedule, tasks, reminders, events, and diary"
+    )
+    documents_context: Optional[List[Dict[str, Any]]] = Field(
+        default=None, description="Client-side documents or active uploaded files"
+    )
 
 
 class ChatResponse(BaseModel):
@@ -158,6 +164,3 @@ class ActionExecuteResponse(BaseModel):
         default_factory=lambda: datetime.now(timezone.utc).isoformat(),
         description="ISO 8601 UTC timestamp",
     )
-
-
-

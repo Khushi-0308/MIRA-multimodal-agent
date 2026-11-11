@@ -3,6 +3,7 @@ import { useMira } from '../context/MiraContext';
 import { BoundingBoxOverlay } from '../components/visual/BoundingBoxOverlay';
 import { MiraAvatar } from '../components/mascot/MiraAvatar';
 import { apiClient, wsClient } from '../services';
+import { getSharedSessionId } from '../utils/sessionHelper';
 import {
   Eye,
   Camera,
@@ -37,7 +38,7 @@ export const VisionPage: React.FC = () => {
   const [uploadedImageBase64, setUploadedImageBase64] = useState<string | null>(null);
   const [selectedOverlay, setSelectedOverlay] = useState<'boxes' | 'ocr' | 'all'>('all');
   const [observationText, setObservationText] = useState<string>('');
-  const sessionIdRef = useRef<string>(`mira-vision-${Date.now().toString(36)}`);
+  const sessionIdRef = useRef<string>(getSharedSessionId());
 
   // Connect to Phase 3 WebSocket on mount and synchronize session
   useEffect(() => {

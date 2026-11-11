@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useMira } from '../context/MiraContext';
 import { MiraAvatar } from '../components/mascot/MiraAvatar';
+import { apiClient } from '../services';
+import { getMyDayContext } from '../utils/myDayContextHelper';
 import {
   MyDayTask,
   MyDayReminder,
@@ -184,6 +186,16 @@ export const MyDayPage: React.FC = () => {
   useEffect(() => {
     saveState('mira_secret_diary_pin_v1', vaultPin);
   }, [vaultPin]);
+
+  // Synchronize live My Day changes to backend ContextCore
+  useEffect(() => {
+    try {
+      const payload = getMyDayContext();
+      apiClient.syncMyDay(payload as unknown as Record<string, unknown>).catch(() => {});
+    } catch {
+      // safe fallback
+    }
+  }, [tasks, reminders, events, diaryEntries]);
 
   // Compute greeting based on local time
   const getGreeting = () => {

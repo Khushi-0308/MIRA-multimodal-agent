@@ -1,7 +1,8 @@
-"""Document Ingestion and Parsing Service for MIRA Multimodal Agent."""
+"""Document Ingestion, Parsing and Semantic RAG Service for MIRA Multimodal Agent."""
 
 import io
 import math
+import re
 from typing import Any, Dict, List
 import docx
 import pypdf
@@ -77,3 +78,109 @@ def estimate_token_count(text: str) -> int:
     if not text:
         return 0
     return max(1, math.ceil(len(text.strip()) / 4))
+
+
+def clean_query_tokens(query: str) -> List[str]:
+    """Extract normalized search keywords from a user query for NLP matching."""
+    if not query:
+        return []
+    cleaned = re.sub(r"[^\w\s]", " ", query.lower())
+    stopwords = {
+        "a", "an", "the", "in", "on", "at", "to", "for", "of", "and", "or", "is",
+        "are", "was", "were", "be", "been", "this", "that", "it", "with", "as",
+        "by", "from", "about", "what", "which", "who", "whom", "how", "why",
+        "can", "could", "would", "should", "do", "does", "did", "have", "has",
+        "had", "i", "you", "my", "your", "me", "tell", "show", "give", "please",
+    }
+    tokens = [t.strip() for t in cleaned.split() if t.strip() and t.strip() not in stopwords]
+    return tokens
+
+
+def retrieve_relevant_chunks(
+    query: str,
+    documents: List[Dict[str, Any]],
+    top_k: int = 6,
+    max_chars: int = 2500,
+) -> List[Dict[str, Any]]:
+    """Retrieve the most semantically relevant document chunks using NLP keyword relevance and phrase matching.
+
+    Scores chunks based on:
+    - Keyword term frequency overlap.
+    - Exact multi-word phrase matching.
+    - Document title and filename matching.
+    - Chunk position / key overview bonuses.
+    """
+    if not documents:
+        return []
+
+    tokens = clean_query_tokens(query)
+    q_lower = query.lower().strip()
+    is_general_query = not tokens or any(
+        term in q_lower for term in (
+            "all documents", "summarize documents", "what files", "what documents",
+            "list files", "overview of doc", "my documents", "uploaded documents"
+        )
+    )
+
+    scored_chunks: List[Dict[str, Any]] = []
+
+    for doc in documents:
+        filename = doc.get("filename", "Untitled Document")
+        doc_summary = doc.get("summary", "")
+        chunks = doc.get("chunks", [])
+
+        # If document has no explicit chunks, generate fallback chunk from full_text or snippet
+        if not chunks:
+            text = doc.get("full_text") or doc.get("content_snippet") or doc_summary
+            if text:
+                chunks = [{
+                    "chunk_id": f"{doc.get('document_id', 'doc')}-fallback",
+                    "index": 1,
+                    "word_count": len(text.split()),
+                    "token_weight": estimate_token_count(text),
+                    "content": text[:2000],
+                }]
+
+        # Check if query specifically mentions this filename
+        doc_name_clean = filename.lower()
+        doc_boost = 5.0 if any(t in doc_name_clean for t in tokens if len(t) > 2) else 1.0
+
+        for chunk in chunks:
+            content = chunk.get("content", "")
+            if not content:
+                continue
+
+            content_lower = content.lower()
+            score = 0.0
+
+            if is_general_query:
+                # In a general query, prioritize the first chunks and document overview
+                score = 10.0 / (chunk.get("index", 1))
+            else:
+                # 1. Exact phrase match bonus
+                if len(q_lower) > 5 and q_lower in content_lower:
+                    score += 25.0
+
+                # 2. Token overlap and frequency
+                for t in tokens:
+                    if t in content_lower:
+                        count = content_lower.count(t)
+                        score += (2.0 + math.log(1 + count))
+
+                # 3. Apply document title boost
+                score *= doc_boost
+
+            if score > 0 or is_general_query:
+                scored_chunks.append({
+                    "filename": filename,
+                    "document_id": doc.get("document_id"),
+                    "chunk_id": chunk.get("chunk_id", ""),
+                    "index": chunk.get("index", 1),
+                    "score": round(score, 2),
+                    "token_weight": chunk.get("token_weight", 0),
+                    "content": content[:max_chars],
+                })
+
+    # Sort descending by score
+    scored_chunks.sort(key=lambda x: x["score"], reverse=True)
+    return scored_chunks[:top_k]

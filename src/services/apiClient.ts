@@ -21,6 +21,8 @@ export interface HealthCheckResponse {
 export interface ChatRequestPayload {
   message: string;
   session_id?: string;
+  my_day_context?: Record<string, unknown>;
+  documents_context?: Array<Record<string, unknown>>;
 }
 
 export interface ChatResponsePayload {
@@ -91,17 +93,46 @@ export class MiraApiClient {
   }
 
   /**
-   * Send a chat message to the Gemini-backed chat endpoint
+   * Send a chat message to the Gemini-backed chat endpoint with My Day and Document RAG grounding
    */
-  public async sendChatMessage(message: string, sessionId?: string): Promise<ChatResponsePayload> {
+  public async sendChatMessage(
+    message: string,
+    sessionId?: string,
+    myDayContext?: Record<string, unknown>,
+    documentsContext?: Array<Record<string, unknown>>
+  ): Promise<ChatResponsePayload> {
     const res = await fetch(`${this.baseUrl}/api/chat`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message, session_id: sessionId }),
+      body: JSON.stringify({
+        message,
+        session_id: sessionId,
+        my_day_context: myDayContext,
+        documents_context: documentsContext,
+      }),
     });
     if (!res.ok) {
       const errText = await res.text().catch(() => res.statusText);
       throw new Error(`Chat request failed [${res.status}]: ${errText}`);
+    }
+    return res.json();
+  }
+
+  /**
+   * Sync My Day schedule, tasks, reminders, and reflections to ContextCore
+   */
+  public async syncMyDay(
+    myDayContext: Record<string, unknown>,
+    sessionId?: string
+  ): Promise<{ status: string; session_id: string; message: string; timestamp: string }> {
+    const res = await fetch(`${this.baseUrl}/api/myday/sync`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ my_day_context: myDayContext, session_id: sessionId }),
+    });
+    if (!res.ok) {
+      const errText = await res.text().catch(() => res.statusText);
+      throw new Error(`Sync My Day failed [${res.status}]: ${errText}`);
     }
     return res.json();
   }
@@ -180,7 +211,6 @@ export class MiraApiClient {
    * Upload and ingest a real document (PDF, DOCX, TXT, MD, etc.) into ContextCore
    */
   public async uploadDocument(
-
     file: File,
     sessionId?: string
   ): Promise<{
@@ -297,5 +327,3 @@ export class MiraApiClient {
 }
 
 export const apiClient = new MiraApiClient();
-
-

@@ -19,7 +19,12 @@ from backend.models import (
     ActionExecuteResponse,
 )
 from backend.services.gemini_service import generate_response, analyze_image
-from backend.services.document_service import extract_text_from_file, chunk_document_text, estimate_token_count
+from backend.services.document_service import (
+    extract_text_from_file,
+    chunk_document_text,
+    estimate_token_count,
+    retrieve_relevant_chunks,
+)
 from backend.services.tool_service import execute_tool
 
 
@@ -48,27 +53,148 @@ app.add_middleware(
 )
 
 
-def build_grounded_prompt(user_message: str, session_id: str) -> str:
-    """Build RAG-augmented prompt incorporating active document chunks and visual context."""
+def build_grounded_prompt(
+    user_message: str,
+    session_id: str,
+    my_day_context: Optional[Dict[str, Any]] = None,
+    client_documents: Optional[List[Dict[str, Any]]] = None,
+) -> str:
+    """Build RAG-augmented prompt incorporating active document chunks, My Day live schedule, and visual context."""
     ctx = CONTEXT_STORE.get(session_id, {})
-    docs = DOCUMENT_STORE.get(session_id, [])
+
+    # Collect documents across this session, shared companion session, and all active stores
+    collected_docs: List[Dict[str, Any]] = []
+    seen_ids = set()
+
+    def add_doc(doc: Dict[str, Any]):
+        if not isinstance(doc, dict):
+            return
+        did = str(doc.get("document_id") or doc.get("id") or doc.get("filename") or doc.get("name") or "")
+        if did and did in seen_ids:
+            return
+        if did:
+            seen_ids.add(did)
+        collected_docs.append(doc)
+
+    # 1. Documents in current session
+    for d in DOCUMENT_STORE.get(session_id, []):
+        add_doc(d)
+
+    # 2. Documents in shared companion session
+    for d in DOCUMENT_STORE.get("mira-session-companion", []):
+        add_doc(d)
+
+    # 3. Documents anywhere in DOCUMENT_STORE
+    for sid_key, doc_list in DOCUMENT_STORE.items():
+        if isinstance(doc_list, list):
+            for d in doc_list:
+                add_doc(d)
+
+    # 4. Client documents passed in request
+    if client_documents and isinstance(client_documents, list):
+        for cd in client_documents:
+            if isinstance(cd, dict):
+                norm_doc = {
+                    "document_id": cd.get("id") or cd.get("document_id") or f"client-doc-{len(collected_docs)}",
+                    "filename": cd.get("name") or cd.get("filename") or "Document",
+                    "summary": cd.get("summary") or cd.get("snippet") or "",
+                    "content_snippet": cd.get("snippet") or cd.get("content") or cd.get("summary") or "",
+                    "full_text": cd.get("full_text") or cd.get("content") or "",
+                    "token_count": cd.get("tokenCount") or cd.get("token_count") or 100,
+                    "chunks": cd.get("chunks") or [],
+                }
+                add_doc(norm_doc)
 
     parts = []
 
-    # 1. Document RAG context
-    if docs:
-        parts.append("=== RETRIEVED DOCUMENT KNOWLEDGE CONTEXT ===")
-        for d in docs[-5:]:
-            parts.append(f"Document: {d.get('filename')} (Tokens: {d.get('token_count', 0)})")
-            summary = d.get("summary", "")
-            if summary:
-                parts.append(f"Summary: {summary}")
-            snippet = d.get("content_snippet", "")
-            if snippet:
-                parts.append(f"Excerpt: {snippet[:1200]}")
-        parts.append("============================================")
+    # === RAG & NLP DOCUMENT RETRIEVAL ===
+    if collected_docs:
+        parts.append("=== RETRIEVED DOCUMENT KNOWLEDGE (RAG & NLP) ===")
+        parts.append(f"Total Available Ingested Documents: {len(collected_docs)}")
+        for d in collected_docs[-10:]:
+            fname = d.get('filename') or d.get('name') or 'Document'
+            toks = d.get('token_count') or d.get('tokenCount') or 0
+            summ = d.get('summary', '')
+            parts.append(f"• Document: {fname} (Tokens: ~{toks})")
+            if summ:
+                parts.append(f"  Summary: {summ}")
 
-    # 2. Vision grounding anchors
+        # Semantic chunk retrieval via NLP relevance
+        retrieved_chunks = retrieve_relevant_chunks(user_message, collected_docs, top_k=6, max_chars=3000)
+        if retrieved_chunks:
+            parts.append("\n--- Most Relevant Semantic Excerpts (NLP Ranked) ---")
+            for idx, ch in enumerate(retrieved_chunks, 1):
+                doc_name = ch.get("filename", "Unknown Document")
+                content = ch.get("content", "").strip()
+                score = ch.get("score", 0.0)
+                parts.append(f"[{idx}] Source: {doc_name} (Relevance Score: {score:.1f}):\n\"{content}\"")
+        parts.append("==================================================")
+
+    # === MY DAY PLANNER, SCHEDULE & SECRET DIARY ===
+    active_my_day = my_day_context or ctx.get("my_day") or CONTEXT_STORE.get("mira-session-companion", {}).get("my_day")
+    if active_my_day and isinstance(active_my_day, dict):
+        parts.append("=== USER'S LIVE SCHEDULE, TASKS & MY DAY PLANNER ===")
+        date_str = active_my_day.get("date_str") or datetime.now(timezone.utc).strftime("%A, %B %d, %Y")
+        parts.append(f"Today's Date: {date_str}")
+
+        stats = active_my_day.get("stats", {})
+        if stats:
+            parts.append(
+                f"Task Progress: {stats.get('completed', 0)}/{stats.get('total', 0)} tasks completed "
+                f"({stats.get('percentage', 0)}% done). Pending: {stats.get('pending', 0)}."
+            )
+
+        # Today's Tasks
+        today_tasks = active_my_day.get("today_tasks", [])
+        if today_tasks:
+            parts.append("\nToday's Tasks:")
+            for t in today_tasks:
+                status_icon = "✓ [Completed]" if t.get("completed") else "⏳ [Pending]"
+                prio = str(t.get("priority", "medium")).upper()
+                due = f" (Due: {t.get('dueTime')})" if t.get("dueTime") else ""
+                cat = f" [{t.get('category')}]" if t.get("category") else ""
+                parts.append(f"  - {status_icon} {t.get('title')}{cat}{due} [Priority: {prio}]")
+
+        # Upcoming Tasks
+        upcoming_tasks = active_my_day.get("upcoming_tasks", [])
+        if upcoming_tasks:
+            parts.append("\nUpcoming Scheduled Tasks:")
+            for t in upcoming_tasks:
+                status_icon = "✓ [Completed]" if t.get("completed") else "⏳ [Pending]"
+                prio = str(t.get("priority", "medium")).upper()
+                due = f" (Date: {t.get('dueDate', 'Upcoming')})"
+                parts.append(f"  - {status_icon} {t.get('title')}{due} [Priority: {prio}]")
+
+        # Today's Schedule & Events Timeline
+        events = active_my_day.get("events", [])
+        if events:
+            parts.append("\nToday's Calendar & Schedule:")
+            for e in events:
+                loc = f" @ {e.get('location')}" if e.get('location') else ""
+                etype = f" ({e.get('type')})" if e.get('type') else ""
+                parts.append(f"  - ⏰ {e.get('time')}: {e.get('title')}{etype}{loc}")
+
+        # Active & Urgent Reminders
+        reminders = active_my_day.get("reminders", [])
+        if reminders:
+            parts.append("\nActive Reminders:")
+            for r in reminders:
+                urg = " 🔥 [URGENT]" if r.get("urgent") or r.get("priority") == "urgent" else ""
+                rep = f" ({r.get('repeat')})" if r.get("repeat") else ""
+                status_str = " (Dismissed)" if r.get("dismissed") or r.get("completed") else ""
+                parts.append(f"  - 🔔 {r.get('time')}: {r.get('title')}{urg}{rep}{status_str}")
+
+        # Secret Diary Reflections
+        reflections = active_my_day.get("reflections", [])
+        if reflections:
+            parts.append("\nDaily Reflections & Mood:")
+            for ref in reflections[-3:]:
+                mood = f" [Mood: {ref.get('mood')} {ref.get('moodLabel', '')}]" if ref.get('mood') else ""
+                parts.append(f"  - {ref.get('dateStr', 'Today')}{mood}: \"{ref.get('text', '')[:200]}\"")
+
+        parts.append("====================================================")
+
+    # 3. Vision grounding anchors
     anchors = ctx.get("active_anchors", [])
     vision_anchors = [a for a in anchors if isinstance(a, dict) and a.get("modality") == "vision"]
     if vision_anchors:
@@ -80,11 +206,19 @@ def build_grounded_prompt(user_message: str, session_id: str) -> str:
     if parts:
         context_block = "\n".join(parts)
         return (
-            f"You are MIRA, an intelligent real-time Multimodal Assistant.\n"
-            f"Ground your response in the following multimodal context if relevant:\n\n"
+            f"You are MIRA, the intelligent, friendly, real-time Multimodal AI Companion.\n"
+            f"You have comprehensive access to the user's workspace, including their live My Day schedule, "
+            f"tasks, reminders, calendar events, personal reflections, and all uploaded documents via RAG (Retrieval-Augmented Generation).\n\n"
+            f"GROUNDING RULES:\n"
+            f"1. When the user asks about their schedule, what they have to do today, upcoming tasks, pending work, or reminders, "
+            f"reference the 'LIVE SCHEDULE, TASKS & MY DAY PLANNER' section directly and give them clear, helpful, encouraging guidance.\n"
+            f"2. When the user asks about uploaded documents, files, content, or data, answer accurately using the "
+            f"'RETRIEVED DOCUMENT KNOWLEDGE' and semantic excerpts. Cite the document filename when relevant.\n"
+            f"3. Be proactive, warm, and structured (use bullet points or emojis where appropriate for clarity).\n\n"
+            f"MULTIMODAL CONTEXT:\n"
             f"{context_block}\n\n"
             f"User Prompt: {user_message}\n\n"
-            f"Answer concisely, accurately, and naturally."
+            f"MIRA Assistant Response:"
         )
     return user_message
 
@@ -137,10 +271,22 @@ def health_check():
 
 @app.post("/api/chat", response_model=ChatResponse)
 def chat_endpoint(request: ChatRequest) -> ChatResponse:
-    """Generate assistant reply via Gemini LLM service with ContextCore & RAG grounding."""
-    session_id = request.session_id if request.session_id else f"mira-{uuid.uuid4().hex[:8]}"
+    """Generate assistant reply via Gemini LLM service with ContextCore, My Day & RAG grounding."""
+    session_id = request.session_id if request.session_id else "mira-session-companion"
 
-    prompt_to_send = build_grounded_prompt(request.message, session_id)
+    # Persist live My Day context if provided in request
+    if request.my_day_context:
+        ctx = CONTEXT_STORE.setdefault(session_id, {"session_id": session_id})
+        ctx["my_day"] = request.my_day_context
+        companion_ctx = CONTEXT_STORE.setdefault("mira-session-companion", {"session_id": "mira-session-companion"})
+        companion_ctx["my_day"] = request.my_day_context
+
+    prompt_to_send = build_grounded_prompt(
+        request.message,
+        session_id,
+        my_day_context=request.my_day_context,
+        client_documents=request.documents_context,
+    )
 
     try:
         reply_text = generate_response(prompt_to_send)
@@ -167,6 +313,26 @@ def chat_endpoint(request: ChatRequest) -> ChatResponse:
         timestamp=datetime.now(timezone.utc).isoformat(),
     )
 
+
+@app.post("/api/myday/sync")
+def sync_myday_endpoint(payload: Dict[str, Any]):
+    """Sync My Day tasks, schedule, reminders and reflections directly into ContextCore."""
+    now = datetime.now(timezone.utc).isoformat()
+    sid = payload.get("session_id") or "mira-session-companion"
+    my_day_data = payload.get("my_day_context") or payload
+
+    for target_sid in [sid, "mira-session-companion"]:
+        ctx = CONTEXT_STORE.setdefault(target_sid, {"session_id": target_sid, "created_at": now})
+        ctx["my_day"] = my_day_data
+        ctx["updated_at"] = now
+        ctx["working_memory_summary"] = "My Day schedule and tasks synchronized with MIRA."
+
+    return {
+        "status": "success",
+        "session_id": sid,
+        "message": "My Day schedule synchronized with MIRA ContextCore",
+        "timestamp": now,
+    }
 
 
 @app.post("/api/vision/analyze", response_model=VisionAnalyzeResponse)
@@ -300,7 +466,7 @@ async def upload_document_endpoint(
 ) -> DocumentUploadResponse:
     """Ingest, extract text, chunk, and anchor a document into ContextCore and RAG store."""
     now = datetime.now(timezone.utc).isoformat()
-    sid = session_id if session_id else f"mira-{uuid.uuid4().hex[:8]}"
+    sid = session_id if session_id else "mira-session-companion"
 
     try:
         file_bytes = await file.read()
@@ -339,6 +505,7 @@ async def upload_document_endpoint(
         "chunks_count": len(chunks),
         "summary": summary,
         "content_snippet": snippet,
+        "full_text": extracted_text,
         "chunks": chunks,
         "anchor": anchor,
         "timestamp": now,
@@ -347,6 +514,12 @@ async def upload_document_endpoint(
     if sid not in DOCUMENT_STORE:
         DOCUMENT_STORE[sid] = []
     DOCUMENT_STORE[sid].append(doc_record)
+
+    # Also store under shared companion session for universal accessibility
+    if sid != "mira-session-companion":
+        if "mira-session-companion" not in DOCUMENT_STORE:
+            DOCUMENT_STORE["mira-session-companion"] = []
+        DOCUMENT_STORE["mira-session-companion"].append(doc_record)
 
     # Sync into ContextCore active anchors
     existing_ctx = CONTEXT_STORE.get(sid, {})
@@ -381,6 +554,9 @@ async def upload_document_endpoint(
 def get_documents_endpoint(session_id: str):
     """Retrieve all ingested documents and chunks for a session."""
     docs = DOCUMENT_STORE.get(session_id, [])
+    # If specific session has no docs, also check shared companion store
+    if not docs and session_id != "mira-session-companion":
+        docs = DOCUMENT_STORE.get("mira-session-companion", [])
     return {"session_id": session_id, "documents": docs, "count": len(docs)}
 
 
@@ -390,6 +566,10 @@ def delete_document_endpoint(session_id: str, document_id: str):
     if session_id in DOCUMENT_STORE:
         DOCUMENT_STORE[session_id] = [
             d for d in DOCUMENT_STORE[session_id] if d.get("document_id") != document_id
+        ]
+    if "mira-session-companion" in DOCUMENT_STORE:
+        DOCUMENT_STORE["mira-session-companion"] = [
+            d for d in DOCUMENT_STORE["mira-session-companion"] if d.get("document_id") != document_id
         ]
     return {"session_id": session_id, "deleted_document_id": document_id, "status": "deleted"}
 
@@ -441,7 +621,7 @@ def execute_action_endpoint(request: ActionExecuteRequest) -> ActionExecuteRespo
 
 @app.websocket("/ws/{session_id}")
 async def websocket_endpoint(websocket: WebSocket, session_id: str):
-    """Real-time WebSocket endpoint connected to ContextCore and Gemini LLM."""
+    """Real-time WebSocket endpoint connected to ContextCore, My Day & Gemini LLM."""
     await websocket.accept()
     try:
         while True:
@@ -479,10 +659,24 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
             session_context["working_memory"].append(msg_entry)
             session_context["working_memory_summary"] = f"User: {str(user_prompt)[:120]}"
             session_context["updated_at"] = now
+
+            # Sync My Day if passed in WebSocket payload
+            my_day_ctx = data.get("my_day_context") if isinstance(data, dict) else None
+            client_docs = data.get("documents_context") if isinstance(data, dict) else None
+            if my_day_ctx:
+                session_context["my_day"] = my_day_ctx
+                companion_ctx = CONTEXT_STORE.setdefault("mira-session-companion", {"session_id": "mira-session-companion"})
+                companion_ctx["my_day"] = my_day_ctx
+
             CONTEXT_STORE[session_id] = session_context
 
             # 3. Send grounded prompt to generate_response() with graceful error handling
-            grounded_prompt = build_grounded_prompt(str(user_prompt), session_id)
+            grounded_prompt = build_grounded_prompt(
+                str(user_prompt),
+                session_id,
+                my_day_context=my_day_ctx,
+                client_documents=client_docs,
+            )
             try:
                 gemini_reply = generate_response(grounded_prompt)
                 gemini_error = None
@@ -565,4 +759,3 @@ if __name__ == "__main__":
     port = int(os.getenv("PORT", "8000"))
     host = os.getenv("HOST", "127.0.0.1")
     uvicorn.run("backend.main:app", host=host, port=port, reload=True)
-

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useMira } from '../context/MiraContext';
 import { MiraAvatar } from '../components/mascot/MiraAvatar';
 import { apiClient, wsClient } from '../services';
+import { getSharedSessionId } from '../utils/sessionHelper';
 import {
   Zap,
   Check,
@@ -31,7 +32,7 @@ export const ActionsPage: React.FC = () => {
   const [rejectReason, setRejectReason] = useState('');
   const [isRejecting, setIsRejecting] = useState(false);
   const [showJsonParams, setShowJsonParams] = useState(false);
-  const sessionIdRef = useRef<string>(`mira-action-${Date.now().toString(36)}`);
+  const sessionIdRef = useRef<string>(getSharedSessionId());
 
   // Connect WebSocket and initialize action context on mount
   useEffect(() => {
@@ -69,8 +70,13 @@ export const ActionsPage: React.FC = () => {
     };
   }, []);
 
-  const getStepStatus = (stepIndex: number) => {
+  const getStepStatus = (stepIndex: number): 'completed' | 'active' | 'pending' | 'rejected' => {
     // 0: Proposed Action, 1: User Approval, 2: Execution, 3: Verification
+    if (currentActionProposal?.status === 'rejected') {
+      if (stepIndex === 0) return 'completed';
+      if (stepIndex === 1) return 'rejected';
+      return 'pending';
+    }
     if (agentState === 'waiting for approval') {
       if (stepIndex === 0) return 'completed';
       if (stepIndex === 1) return 'active';
@@ -86,22 +92,17 @@ export const ActionsPage: React.FC = () => {
       if (stepIndex === 3) return 'active';
       return 'pending';
     }
-    if (agentState === 'completed' || currentActionProposal?.status === 'completed') {
+    if (agentState === 'completed') {
       return 'completed';
-    }
-    if (currentActionProposal?.status === 'rejected') {
-      if (stepIndex === 0) return 'completed';
-      if (stepIndex === 1) return 'rejected';
-      return 'pending';
     }
     return 'pending';
   };
 
   const steps = [
-    { title: 'Proposed Action', desc: 'Agent reasons & drafts action' },
-    { title: 'User Approval', desc: 'Safety gate & confirmation' },
-    { title: 'Execution', desc: 'Safe tool dispatch' },
-    { title: 'Verification', desc: 'Telemetry proof & validation' },
+    { title: 'Action Proposed', desc: 'Agent plans action' },
+    { title: 'User Approval', desc: 'Confirmation gate' },
+    { title: 'Execution', desc: 'Safe tool invocation' },
+    { title: 'Verification', desc: 'Telemetry proof check' },
   ];
 
   const [executionResult, setExecutionResult] = useState<{
@@ -110,7 +111,6 @@ export const ActionsPage: React.FC = () => {
     verification_details: Record<string, unknown>;
     execution_time_ms: number;
   } | null>(null);
-
 
   const handleApprove = async () => {
     if (!currentActionProposal) return;
@@ -146,7 +146,6 @@ export const ActionsPage: React.FC = () => {
       console.warn('[ActionsPage] Real execution fallback:', err);
     }
   };
-
 
   const handleConfirmReject = () => {
     if (!currentActionProposal) return;
